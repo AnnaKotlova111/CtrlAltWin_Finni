@@ -1,0 +1,693 @@
+/* Базовая раскладка и общие компоненты интерфейса. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: var(--warm);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--fs-h1);
+}
+h2 {
+  font-size: var(--fs-h2);
+}
+h3 {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--purple);
+  outline-offset: 2px;
+}
+
+/* ══════════════ Каркас приложения ══════════════ */
+
+/* Высота фиксирована: прокручивается содержимое экрана, а не страница.
+   Так шапка и нижняя панель всегда остаются на месте. */
+.app {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--app-w);
+  margin: 0 auto;
+  height: 100%;
+  overflow: hidden;
+  background: var(--cream);
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+/*
+ * На планшете игра занимает весь экран – как любое приложение на планшете.
+ * Чтобы широкая колонка не превращалась в нечитаемо длинные строки,
+ * списки карточек внутри идут в две колонки (см. `.stack--cols`).
+ */
+@media (min-width: 700px) and (min-height: 600px) {
+  body {
+    background:
+      radial-gradient(90% 55% at 50% 0%, #fff4e4 0%, rgba(255, 244, 228, 0) 70%),
+      var(--warm);
+  }
+}
+
+/*
+ * Очень широкие экраны – настольный браузер и большие планшеты-трансформеры.
+ * Дальше растягиваться некуда, поэтому игра лежит отдельной карточкой
+ * со скруглёнными углами и тёплым полем вокруг.
+ */
+@media (min-width: 1160px) and (min-height: 700px) {
+  .app {
+    height: calc(100% - 40px);
+    margin: 20px auto;
+    border-radius: 34px;
+  }
+}
+
+.screen {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: var(--pad);
+  padding-bottom: calc(var(--pad) + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/*
+ * Блоки экрана не сжимаются. Без этого flex ужимал любой блок, у которого
+ * есть overflow: hidden (например раскрытую подсказку), вместо того чтобы
+ * удлинить страницу: текст обрезался, а прокрутки не появлялось.
+ */
+.screen > * {
+  flex-shrink: 0;
+}
+
+.screen--flush {
+  padding: 0;
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Шапка: кнопка «назад» всегда слева, на одном месте.
+   Шапка выходит за отступы экрана и липнет к самому краю: иначе между
+   ней и краем оставалась щель, и в неё было видно прокрученный текст. */
+.topbar {
+  position: sticky;
+  top: calc(var(--pad) * -1);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: calc(var(--pad) * -1) calc(var(--pad) * -1) 0;
+  padding: calc(env(safe-area-inset-top, 0px) + var(--pad) + 10px) var(--pad) 10px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Круглые кнопки в шапке. */
+.topbar .iconbtn {
+  border-radius: 50%;
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Шапка главного экрана лежит прямо на комнате: ни подложки, ни линии,
+   комната видна до самого верха. Из потока она выведена, поэтому её высота
+   не сдвигает картинку – место под неё заложено отступом внутри сцены.
+   Отрицательные поля липкой шапки ей не нужны: она и так во всю ширину. */
+.topbar--over {
+  position: absolute;
+  margin: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+  background: transparent;
+  border-bottom: 0;
+}
+
+/* Приветствие лежит на картинке, поэтому вокруг букв – мягкое кремовое
+   свечение. Оно держит контраст на любом фоне комнаты, но не выглядит
+   плашкой: границ у него нет. */
+.topbar--over .topbar__title {
+  text-shadow:
+    0 1px 1px rgba(255, 253, 249, 0.95),
+    0 0 10px rgba(255, 253, 249, 0.92),
+    0 0 22px rgba(255, 253, 249, 0.75);
+}
+
+.topbar--over .topbar__sub {
+  color: var(--ink);
+  opacity: 0.72;
+  text-shadow:
+    0 1px 1px rgba(255, 253, 249, 0.95),
+    0 0 9px rgba(255, 253, 249, 0.9);
+}
+
+.topbar__title {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: var(--fs-h2);
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar__sub {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+/* Шапка главного экрана лежит на комнате, а строка баланса стоит под ней
+   на фиксированной высоте. Поэтому заголовок не должен переноситься:
+   от длины имени игрока высота шапки меняться не может. */
+.topbar--over .topbar__title,
+.topbar--over .topbar__sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 379px) {
+  .topbar--over .topbar__title {
+    font-size: var(--fs-lg);
+  }
+
+  .topbar--over .topbar__sub {
+    font-size: 14px;
+  }
+}
+
+.iconbtn {
+  width: var(--tap);
+  height: var(--tap);
+  min-width: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn);
+  background: var(--surface);
+  color: var(--ink);
+  transition: transform var(--dur), background var(--dur);
+}
+
+.iconbtn:active {
+  transform: scale(0.94);
+}
+
+.iconbtn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* ══════════════ Нижняя навигация ══════════════ */
+
+.tabbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 100%;
+  max-width: var(--app-w);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 253, 249, 0.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+
+.tab {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-chip);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 2px;
+  transition: background var(--dur), color var(--dur);
+}
+
+.tab[aria-current='page'] {
+  color: var(--purple);
+  background: var(--lavender-soft);
+}
+
+/* Телефон набок: панель ниже, подписи мельче – иначе она съедает
+   половину и без того маленькой высоты. */
+@media (max-height: 560px) {
+  .tab {
+    min-height: 44px;
+    font-size: 12px;
+    gap: 2px;
+  }
+
+  .tab img {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* Планшет: панель и подписи крупнее – палец у ребёнка тот же,
+   а расстояние до экрана больше. */
+@media (min-width: 700px) and (min-height: 600px) {
+  .tab {
+    min-height: 72px;
+    font-size: 16px;
+  }
+
+  .tab img {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* На очень широких экранах панель прижата к нижнему краю карточки игры,
+   а не экрана. */
+@media (min-width: 1160px) and (min-height: 700px) {
+  .tabbar {
+    bottom: 20px;
+    border-radius: 0 0 34px 34px;
+  }
+}
+
+/* Иконки цветные, поэтому текущий раздел выделяем ещё и яркостью:
+   у остальных вкладок иконка приглушена. Цвет – не единственный признак:
+   у текущей вкладки есть и подложка, и цвет подписи. */
+.tab img {
+  opacity: 0.5;
+  transition: opacity var(--dur);
+}
+
+.tab[aria-current='page'] img {
+  opacity: 1;
+}
+
+/* ══════════════ Карточки ══════════════ */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+  padding: var(--pad);
+}
+
+
+.card--hero {
+  border-radius: var(--r-hero);
+  box-shadow: var(--shadow);
+}
+
+.card--flat {
+  box-shadow: none;
+  background: var(--warm);
+}
+/* Карточка без лишнего воздуха – для коротких блоков в одну-две строки. */
+.card--tight {
+  padding: 12px 14px;
+}
+
+
+.card--soft {
+  background: var(--lavender-soft);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.card__title {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: var(--fs-lg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.muted {
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.stack--tight {
+  gap: 8px;
+}
+
+/* ══════════════ Кнопки ══════════════ */
+
+.btn {
+  min-height: var(--btn-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--r-btn);
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: var(--fs-base);
+  background: var(--purple);
+  color: var(--on-purple);
+  transition: transform var(--dur), filter var(--dur);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  background: #e9e5e1;
+  color: var(--ink-mute);
+  cursor: not-allowed;
+}
+
+.btn--secondary {
+  background: var(--lavender-soft);
+  color: var(--purple);
+}
+
+.btn--secondary:disabled {
+  background: #e9e5e1;
+  color: var(--ink-mute);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--purple);
+  border: 2px solid var(--lavender-soft);
+}
+
+.btn--danger {
+  background: var(--red);
+  color: #fff;
+}
+
+.btn--sm {
+  min-height: var(--tap);
+  font-size: var(--fs-sm);
+  border-radius: var(--r-chip);
+  width: auto;
+  padding: 0 16px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-row > .btn {
+  flex: 1;
+}
+
+/* ══════════════ Деньги и цифры ══════════════ */
+
+.money {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.money--big {
+  font-size: var(--fs-num);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.coin {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  /* Монета не должна липнуть к цифре: сумма читается как одно целое,
+     но знак валюты остаётся отдельным значком. */
+  margin-right: 0.24em;
+  flex: none;
+}
+
+/* ══════════════ Бейджи и чипы ══════════════ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--lavender-soft);
+  color: var(--purple);
+}
+
+.badge--needs {
+  background: #e3f1e4;
+  color: #3d7a42;
+}
+.badge--wants {
+  background: #fdeef1;
+  color: #b24a58;
+}
+.badge--savings {
+  background: #e6f2fb;
+  color: #2f6f96;
+}
+.badge--gold {
+  background: #fff1cf;
+  color: var(--gold-dark);
+}
+.badge--warn {
+  background: #fdeaeb;
+  color: #b8404a;
+}
+
+/* ══════════════ Прогресс ══════════════ */
+
+.bar {
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--warm);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.bar__fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--purple);
+  transition: width var(--dur) ease-out;
+}
+
+.bar--thin {
+  height: 8px;
+}
+
+/* ══════════════ Поля ввода ══════════════ */
+
+.field {
+  width: 100%;
+  min-height: var(--btn-h);
+  padding: 0 16px;
+  border-radius: var(--r-btn);
+  border: 2px solid var(--line-strong);
+  background: var(--surface-plain);
+  font: inherit;
+  color: var(--ink);
+}
+
+.field:focus {
+  border-color: var(--lavender);
+  outline: none;
+}
+
+.label {
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ══════════════ Служебное ══════════════ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.divider {
+  height: 1px;
+  background: var(--line);
+  border: 0;
+  margin: 4px 0;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.center {
+  text-align: center;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * Планшет: списки карточек идут в две колонки. Одна колонка на ширину
+ * планшета – это полупустой экран и строки, которые тяжело читать.
+ * Заголовок списка и подписи остаются во всю ширину.
+ */
+@media (min-width: 700px) and (min-height: 600px) {
+  .stack.stack--cols {
+    display: grid;
+    /* Колонок столько, сколько влезает по 330 px: на планшете в портрете
+       это две, на большом планшете в альбоме – три. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    gap: var(--gap);
+    /* Соседние карточки в ряду одной высоты: разнобой по нижнему краю
+       выглядел как сломанная вёрстка. */
+    align-items: stretch;
+  }
+
+  /* Лишняя высота уходит в низ карточки, а не растягивает строки внутри:
+     иначе разделитель и подпись разъезжались по-разному в каждой карточке. */
+  .stack.stack--cols > .shopitem {
+    align-content: start;
+  }
+
+  /* Внутри колонки карточке нужен телефонный отступ: планшетные 26 px
+     съедали место у текста, и подписи ломались на много строк. */
+  .stack.stack--cols > .card,
+  .stack.stack--cols > .linkrow,
+  .stack.stack--cols > button.card {
+    padding: 18px;
+  }
+
+  /* Строки, у которых внутри картинка, текст и награда в ряд, требуют
+     больше ширины: они делятся на колонки только на широком планшете. */
+  .stack.stack--cols--wide {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
+  }
+
+  .stack.stack--cols > .row,
+  .stack.stack--cols > .listcap,
+  .stack.stack--cols > h3,
+  .stack.stack--cols > .sumline {
+    grid-column: 1 / -1;
+  }
+
+  /* Быстрые переходы на главной: четыре плитки в ряд. */
+  .grid-2 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

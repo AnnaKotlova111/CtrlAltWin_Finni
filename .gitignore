@@ -1,0 +1,22 @@
+# Зависимости и результаты сборки
+node_modules/
+app/dist/
+app/android/
+app/ios/
+*.tsbuildinfo
+
+# Ключи подписи и пароли в репозитории не хранятся
+*.jks
+*.keystore
+keystore.properties
+
+# Готовые сборки выкладываются в релиз, а не в код
+*.apk
+*.aab
+
+# Локальное окружение
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,2105 @@
+/* Экраны и составные блоки. */
+
+/* ══════════════ Заставка ══════════════ */
+
+.splash {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* ══════════════ Питомец и комната ══════════════ */
+
+/*
+ * Сцена – вертикальный столбик: реплика сверху, питомец под ней.
+ * Реплика стоит в потоке, поэтому никогда не закрывает питомца,
+ * а сцена сама вырастает, если текст длинный.
+ */
+.petview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Хвостик реплики выступает на 7px, питомец покачивается на 7px вверх –
+     зазора 22px хватает, чтобы они не соприкасались даже на пике. */
+  gap: 22px;
+  /* Снизу у комнаты «хвост»: она заходит за карточки показателей
+     и плавно растворяется примерно на их середине. */
+  padding: 14px var(--pad) calc(20px + var(--room-tail));
+  overflow: hidden;
+}
+
+/* Когда сверху висит баланс, комнате нужен запас, чтобы он ничего не закрывал.
+   Запас заметно больше высоты строки: между кнопкой «Бонус» и репликой
+   должен оставаться воздух, иначе они выглядят слипшимися. */
+/* Запас сверху: сначала шапка поверх комнаты, под ней строка баланса,
+   и только потом реплика питомца. */
+.petview--hud {
+  padding-top: 150px;
+}
+
+.petview__hud {
+  position: absolute;
+  top: 92px;
+  left: var(--pad);
+  right: var(--pad);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.petview__hud > * {
+  pointer-events: auto;
+}
+
+.petview__hud .btn--sm {
+  height: var(--hud-h);
+  min-height: var(--hud-h);
+}
+
+
+/* Баланс – главное число игры, поэтому он висит поверх комнаты, как в играх. */
+.hudbalance {
+  /* Баланс всегда у левого края комнаты. */
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  /* Одна высота с кнопкой бонуса – иначе они выглядят разнокалиберными. */
+  height: var(--hud-h);
+  min-height: var(--hud-h);
+  padding: 6px 16px 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.94);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+}
+
+.hudbalance .money {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* В балансе сверху знак валюты убран: рядом нарисована монета, и буква Φ
+   только утяжеляет строку. В остальных местах Φ остаётся. */
+.hudbalance .money__unit {
+  display: none;
+}
+
+/* Комната – атмосфера: слегка размыта, чтобы не спорить с питомцем.
+   Снизу картинка растворяется маской: не «закрашивается» кремовым поверх,
+   а именно исчезает, поэтому границы не видно ни на каком фоне. */
+.petview__room {
+  position: absolute;
+  inset: -6px;
+  z-index: 0;
+  background-image: url('/assets/ui/room.webp');
+  background-size: cover;
+  background-position: center 62%;
+  filter: blur(1.6px) saturate(1.02);
+  transform: scale(1.03);
+  -webkit-mask-image: var(--room-fade);
+  mask-image: var(--room-fade);
+}
+
+/* Светлая вуаль сверху – под приветствием – и мягкая виньетка по краям.
+   Снизу вуаль растворяется по той же маске, что и сама комната. */
+.petview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(120% 70% at 50% 45%, transparent 45%, rgba(120, 90, 60, 0.12) 100%),
+    linear-gradient(
+      to bottom,
+      rgba(255, 249, 240, 0.9) 0%,
+      rgba(255, 249, 240, 0.74) 10%,
+      rgba(255, 249, 240, 0.34) 19%,
+      transparent 29%
+    );
+  -webkit-mask-image: var(--room-fade);
+  mask-image: var(--room-fade);
+  pointer-events: none;
+}
+
+.petview__speech {
+  position: relative;
+  z-index: 2;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Коврик – сцена: питомец стоит на нём. */
+/* Высота сцены зависит от экрана: на невысоких телефонах (SE, 568 px)
+   питомец при фиксированных 220 px уходил под нижнюю панель. */
+.petview__stage {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: clamp(160px, 27vh, 220px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.petview__rug {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52%;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(120, 90, 60, 0.26), transparent 70%);
+}
+
+/* Питомец – главный герой: максимально резкий.
+   Ограничение ширины мягкое: широким и низким питомцам (Кэшик) оно мешало
+   вырасти во всю высоту сцены, и рядом с остальными они выглядели мелкими. */
+.petview__pet {
+  position: relative;
+  height: 100%;
+  width: auto;
+  max-width: 88%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 10px 18px rgba(70, 45, 110, 0.18));
+}
+
+.petview__pet--float {
+  animation: float-soft 4.2s ease-in-out infinite;
+}
+
+/* Невысокие телефоны (SE и подобные): сцена ужимается, чтобы питомец целиком
+   помещался над нижней панелью и его не приходилось искать прокруткой. */
+@media (max-height: 700px) {
+  .petview {
+    gap: 16px;
+    /* Запас снизу всегда включает «хвост» комнаты: карточки показателей
+       поднимаются ровно на него, и без запаса они наезжали на питомца. */
+    padding-bottom: calc(12px + var(--room-tail));
+  }
+
+  .petview--hud {
+    padding-top: 144px;
+  }
+
+  .petview__stage {
+    height: clamp(150px, 27vh, 220px);
+  }
+}
+
+/* Телефон набок: высоты совсем мало, поэтому сцена становится узкой
+   полосой – питомец виден, но не занимает весь экран. */
+@media (max-height: 560px) {
+  .petview {
+    gap: 10px;
+    padding-bottom: calc(8px + var(--room-tail));
+  }
+
+  .petview--hud {
+    padding-top: 108px;
+  }
+
+  .petview__hud {
+    top: 62px;
+  }
+
+  .petview__stage {
+    height: clamp(110px, 32vh, 170px);
+  }
+}
+
+/* Планшет: сцена крупнее – в широкой колонке маленький питомец теряется. */
+@media (min-width: 700px) and (min-height: 600px) {
+  .petview--hud {
+    padding-top: 184px;
+  }
+
+  .petview__hud {
+    top: 104px;
+  }
+
+  .petview__stage {
+    height: clamp(210px, 36vh, 380px);
+  }
+}
+
+.petportrait {
+  object-fit: contain;
+  display: block;
+}
+
+/* ══════════════ Главный экран ══════════════ */
+
+.home {
+  display: flex;
+  flex-direction: column;
+}
+
+.home__pet {
+  position: relative;
+}
+
+.home__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  /* Карточки поднимаются на «хвост» комнаты и лежат прямо на ней. */
+  margin-top: calc(var(--room-tail) * -1);
+  padding: 4px var(--pad) var(--pad);
+  position: relative;
+  z-index: 2;
+}
+
+.bubble {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 290px;
+  /* Сверху оставлено место под плашку с именем. */
+  margin-top: 11px;
+  padding: 17px 15px 9px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  text-align: center;
+  animation: pop-in 320ms ease-out;
+}
+
+/* Хвостик реплики – указывает на питомца. */
+.bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 13px;
+  height: 13px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* Имя питомца – фиолетовая плашка, приподнятая на верхний край облачка. */
+.bubble b {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  padding: 3px 16px;
+  border-radius: var(--r-pill);
+  background: var(--purple);
+  color: var(--on-purple);
+  font-family: var(--font-head);
+  font-size: calc(var(--fs-sm) + 1px);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(70, 45, 110, 0.22);
+}
+
+.adultlink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+
+/* ══════════════ Показатели ══════════════ */
+
+/* Три показателя питомца – каждый в своей карточке. */
+.statrings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.statrings .statring {
+  padding: 10px 4px 9px;
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Строка с причиной настроения: лёгкая рамка и стрелка в лавку. */
+.moodlink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 11px 12px 11px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  text-align: left;
+  transition: transform var(--dur);
+}
+
+.moodlink:active {
+  transform: scale(0.99);
+}
+
+.statring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  text-align: center;
+}
+
+.statring__value {
+  font-weight: 800;
+  font-size: var(--fs-base);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.statring__dial {
+  position: relative;
+  display: block;
+  width: min(52px, 100%);
+  aspect-ratio: 1;
+}
+
+.statring__dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Кольцо заполняется от двенадцати часов по часовой стрелке. */
+  transform: rotate(-90deg);
+}
+
+.statring__track {
+  fill: none;
+  stroke: var(--warm);
+  stroke-width: 9;
+}
+
+.statring__fill {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur) ease-out;
+}
+
+.statring__icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.statring__title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+
+/* Стадия развития – одна строка и тонкая полоса под ней. */
+.stagecard__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.stagecard__head b {
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stagecard__head .muted {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.stagecard .bar {
+  margin-top: 8px;
+}
+
+
+
+/* ══════════════ Строки-ссылки и плитки ══════════════ */
+
+.linkrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+}
+
+.linkrow--card {
+  padding: 13px 15px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  transition: border-color var(--dur), background var(--dur);
+}
+
+.linkrow--card.is-on {
+  border-color: var(--green);
+  background: #f3faf4;
+}
+
+.linkrow--card:disabled {
+  opacity: 0.5;
+}
+
+.linkrow__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.linkrow__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.linkrow__status {
+  align-self: flex-start;
+  margin-top: 3px;
+}
+
+.thumb {
+  width: 50px;
+  height: 50px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 17px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 15px;
+  min-height: 112px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  transition: transform var(--dur);
+}
+
+.tile:active {
+  transform: scale(0.97);
+}
+
+.tile b {
+  margin-top: 4px;
+}
+
+.tile .muted {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* ══════════════ Решения и категории ══════════════ */
+
+.decision {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.4;
+}
+
+.decision__icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+}
+
+.decision__icon--needs {
+  background: #e3f1e4;
+  color: #3d7a42;
+}
+.decision__icon--wants {
+  background: #fdeef1;
+  color: #b24a58;
+}
+.decision__icon--savings {
+  background: #e6f2fb;
+  color: #2f6f96;
+}
+
+/* ══════════════ Заставка первого запуска ══════════════ */
+
+/*
+ * Картинка заставки – 941 × 1672. На ней уже нарисовано место под кнопку,
+ * поэтому настоящая кнопка ставится поверх, в процентах от самой картинки,
+ * а не от экрана. Тогда она совпадает с рисунком при любом размере экрана.
+ */
+.splashscreen {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  /* Прижимаем к низу: на широких и коротких экранах картинка выше экрана,
+     и обрезаться должен верх, а не кнопка «Начать». */
+  align-items: flex-end;
+  justify-content: center;
+  background: #fcf2e4; /* цвет фона самой заставки – на случай полей */
+}
+
+.splashscreen__art {
+  position: relative;
+  flex: none;
+  /* «Cover»: берём большее из ширины экрана и ширины, нужной по высоте. */
+  --art-w: max(min(100vw, var(--app-w)), calc(100vh * 941 / 1672));
+  width: var(--art-w);
+  height: calc(var(--art-w) * 1672 / 941);
+}
+
+/* Современные браузеры учитывают панели браузера точнее. */
+@supports (height: 100dvh) {
+  .splashscreen__art {
+    --art-w: max(min(100dvw, var(--app-w)), calc(100dvh * 941 / 1672));
+  }
+}
+
+.splashscreen__art img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
+}
+
+/* На планшете заставка вписывается целиком: по-другому у картинки
+   в пропорции телефона обрезалась бы вся верхняя часть с названием.
+   Поля по бокам заливаются цветом самой заставки. */
+@media (min-width: 700px) and (min-height: 600px) {
+  .splashscreen {
+    align-items: center;
+  }
+
+  .splashscreen__art {
+    --art-w: min(100vw, var(--app-w), calc(100vh * 941 / 1672));
+  }
+}
+
+@supports (height: 100dvh) {
+  @media (min-width: 700px) and (min-height: 600px) {
+    .splashscreen__art {
+      --art-w: min(100dvw, var(--app-w), calc(100dvh * 941 / 1672));
+    }
+  }
+}
+
+/* Координаты замерены по самой картинке: овал 224…717 px по ширине,
+   1415…1541 px по высоте. Кнопка чуть больше, чтобы не было каёмки. */
+.splashscreen__cta {
+  position: absolute;
+  left: 23.2%;
+  right: 23.2%;
+  top: 84.2%;
+  height: 8.4%;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--purple);
+  color: var(--on-purple);
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: clamp(17px, 4.4vw, 21px);
+  box-shadow: 0 6px 18px rgba(70, 45, 110, 0.28);
+  transition: transform var(--dur), filter var(--dur);
+}
+
+.splashscreen__cta:active {
+  transform: scale(0.97);
+}
+
+/* ══════════════ Карусель питомцев ══════════════ */
+
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.carousel__stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-hero);
+  background: var(--warm);
+  /* Горизонтальный свайп – наш, вертикальная прокрутка остаётся у страницы. */
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.carousel__stage:active {
+  cursor: grabbing;
+}
+
+.carousel__track {
+  display: flex;
+  transition: transform 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+
+.carousel__slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 62px 16px;
+  /* Чтобы картинка не «перехватывала» жест перетаскиванием. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.carousel__slide img {
+  pointer-events: none;
+  max-width: 100%;
+  height: auto;
+  /* На невысоких телефонах питомец уменьшается, чтобы кнопка выбора
+     оставалась ближе к первому экрану. object-fit не даёт ему сплющиться. */
+  max-height: clamp(130px, 24vh, 190px);
+  filter: drop-shadow(0 8px 16px rgba(70, 45, 110, 0.14));
+}
+
+.carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--tap);
+  height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  /* Стрелка нарисована художником вместе с кружком, поэтому своя подложка
+     кнопке не нужна. Но область нажатия остаётся во весь квадрат --tap. */
+  background: transparent;
+  padding: 0;
+  transition: opacity var(--dur), transform var(--dur);
+}
+
+.carousel__arrow--left {
+  left: 6px;
+}
+.carousel__arrow--right {
+  right: 6px;
+}
+
+.carousel__arrow:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.carousel__arrow:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.carousel__dots {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+}
+
+.carousel__dot {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  position: relative;
+}
+
+.carousel__dot::after {
+  content: '';
+  position: absolute;
+  inset: 9px 3px;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+  transition: background var(--dur), inset var(--dur);
+}
+
+.carousel__dot.is-on::after {
+  inset: 9px 0;
+  background: var(--purple);
+}
+
+/* Характер выбранного питомца */
+.petchar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.petchar h2 {
+  font-size: var(--fs-h2);
+}
+
+.petchar__tagline {
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+}
+
+.petchar__quote {
+  font-style: italic;
+  background: var(--lavender-soft);
+  color: #4a2ea0;
+  border-radius: var(--r-chip);
+  padding: 10px 14px;
+  margin-top: 4px;
+  font-size: var(--fs-sm);
+}
+
+.petchar__focus {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  text-align: left;
+}
+
+.petchar__focus img {
+  flex: none;
+  margin-top: 3px;
+}
+
+.petchar__counter {
+  font-size: 13px;
+}
+
+/* ══════════════ Онбординг ══════════════ */
+
+.screen--onboarding {
+  padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom, 0px));
+  padding-top: calc(var(--pad) + env(safe-area-inset-top, 0px));
+}
+
+.onb__progress {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.onb__dot {
+  width: 30px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  transition: background var(--dur);
+}
+
+.onb__dot.is-on {
+  background: var(--purple);
+}
+
+.onb__intro {
+  animation: fade-in 300ms ease-out;
+}
+
+.petgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.petcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 10px 14px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--r-card);
+  text-align: center;
+  transition: border-color var(--dur), transform var(--dur);
+}
+
+.petcard.is-on {
+  border-color: var(--purple);
+  background: var(--lavender-soft);
+}
+
+.petcard:active {
+  transform: scale(0.97);
+}
+
+.petcard .muted {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.petpreview {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  background: var(--warm);
+  border-radius: var(--r-hero);
+}
+
+.colorrow {
+  display: flex;
+  gap: 10px;
+}
+
+.colorbtn {
+  flex: 1;
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 2px solid var(--line);
+  border-radius: var(--r-btn);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.colorbtn.is-on {
+  border-color: var(--purple);
+  background: var(--lavender-soft);
+}
+
+.colorbtn__dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ══════════════ Нижние окна ══════════════ */
+
+.sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(47, 39, 51, 0.38);
+  backdrop-filter: blur(2px);
+  animation: fade-in 180ms ease-out;
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: var(--app-w);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--cream);
+  border-radius: 30px 30px 0 0;
+  padding: 10px var(--pad) calc(var(--pad) + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--shadow-lg);
+  animation: pop-in 260ms ease-out;
+}
+
+.sheet__grip {
+  width: 44px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+  margin: 0 auto 12px;
+}
+
+.sheet__title {
+  font-size: var(--fs-h2);
+  margin-bottom: 12px;
+}
+
+.sheet__body {
+  padding-bottom: 4px;
+}
+
+/* ══════════════ Обратная связь ══════════════ */
+
+.feedback__head {
+  display: flex;
+  justify-content: center;
+}
+
+.feedback__lines {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.deltas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.delta--up {
+  background: #e3f1e4;
+  color: #3d7a42;
+}
+
+.delta--down {
+  background: #fdeaeb;
+  color: #b8404a;
+}
+
+/* Реплика питомца в окне пояснений: портрет + облачко с хвостиком к нему. */
+.petsays {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* Портрет стоит прямо на фоне экрана – без подложки. Отделяет его
+   от фона мягкая тень под лапами, а не круг. */
+.petsays__avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.petsays .petportrait {
+  flex: none;
+  filter: drop-shadow(0 3px 6px rgba(70, 45, 110, 0.14));
+}
+
+.petsays__bubble {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 9px;
+  padding: 19px 15px 12px;
+  background: var(--lavender-soft);
+  border-radius: 20px 20px 20px 6px;
+}
+
+.petsays__bubble::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  bottom: 10px;
+  width: 12px;
+  height: 12px;
+  background: var(--lavender-soft);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+/* Имя питомца – такая же фиолетовая плашка, как на главном экране.
+   Здесь облачко прижато влево, поэтому и плашка стоит у левого края. */
+.petsays__name {
+  position: absolute;
+  top: 0;
+  left: 15px;
+  transform: translateY(-52%);
+  padding: 2px 13px;
+  border-radius: var(--r-pill);
+  background: var(--purple);
+  color: var(--on-purple);
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(70, 45, 110, 0.22);
+}
+
+.petsays__line {
+  font-style: italic;
+}
+
+.petsays__explain {
+  color: var(--ink);
+}
+
+.petspeech {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Подсказка рассказчика под репликой. Голубой – цвет обучения и подсказок
+   по дизайн-коду; значок и слово «Подсказка» отличают её от голоса питомца. */
+.petsays__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 13px;
+  background: #e6f2fb;
+  color: #23566f;
+  border-radius: var(--r-chip);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+.petsays__note img {
+  flex: none;
+  margin-top: 2px;
+}
+
+.nextstep {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 13px 15px;
+  background: #e6f2fb;
+  border-radius: var(--r-card);
+  color: #23566f;
+  font-size: var(--fs-sm);
+}
+
+.nextstep img {
+  margin-top: 3px;
+}
+
+/* ══════════════ Уведомления ══════════════ */
+
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 13px 15px;
+  border-radius: var(--r-card);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+.notice--warn {
+  background: #fdeaeb;
+  color: #8f3038;
+}
+
+.notice--good {
+  background: #e3f1e4;
+  color: #2f6335;
+}
+
+.notice img {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* ══════════════ Степпер ══════════════ */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stepper__value {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Поле выглядит как обычное число, но в него можно нажать и набрать сумму. */
+.stepper__input {
+  width: auto;
+  min-width: 1.6ch;
+  max-width: 6ch;
+  padding: 2px 6px;
+  border: 0;
+  border-bottom: 2px dashed var(--line);
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  appearance: none;
+}
+
+.stepper__input:focus {
+  outline: none;
+  border-bottom-color: var(--purple);
+  background: var(--lavender-soft);
+}
+
+.stepper__unit {
+  color: var(--ink-soft);
+  font-size: var(--fs-base);
+}
+
+/* Быстрые суммы под степпером: мелкие, чтобы не спорить с самим числом. */
+.quickrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.quick {
+  /* Палец у ребёнка тот же, что у взрослого: кнопка не ниже 40 px. */
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--warm);
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--dur), background var(--dur);
+}
+
+.quick:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.quick:disabled {
+  opacity: 0.4;
+}
+
+.quick--all {
+  background: var(--lavender-soft);
+  color: var(--purple);
+  border-color: transparent;
+}
+
+/* ══════════════ Чипы ══════════════ */
+
+.chiprow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border: 2px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  transition: border-color var(--dur), background var(--dur);
+}
+
+.chip.is-on {
+  border-color: var(--purple);
+  background: var(--lavender-soft);
+  color: var(--purple);
+}
+
+.chip:disabled {
+  opacity: 0.45;
+}
+
+.chipgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* В сетке подписи переносятся – так длинные причины не растягивают ряд. */
+.chipgrid .chip {
+  padding: 6px 10px;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+}
+
+.chipgrid--amounts {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.chipgrid--amounts .chip {
+  padding: 4px 2px;
+  white-space: nowrap;
+}
+
+.chip--big {
+  flex: 1 1 40%;
+  font-size: var(--fs-base);
+}
+
+/* ══════════════ Магазин ══════════════ */
+
+/* Остаток по плану в лавке. */
+.planleft__cap {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-mute);
+}
+
+.planleft {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.planleft__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.planleft__name {
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.planleft__sum {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Фильтры лавки стоят одной строкой: перенос «Желаемого» на вторую
+   строку выглядел сломанным. Если строка не помещается – она прокручивается. */
+.chiprow--filters {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.chiprow--filters::-webkit-scrollbar {
+  display: none;
+}
+
+.chiprow--filters .chip {
+  flex: none;
+  padding: 0 14px;
+  font-size: var(--fs-sm);
+}
+
+/* Итоговая строка: одна цифра, которую полезно видеть, но которой
+   не стоит открывать экран – поэтому строка, а не карточка. */
+.sumline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 15px;
+  border-radius: var(--r-card);
+  background: var(--lavender-soft);
+  color: var(--purple);
+  font-size: var(--fs-sm);
+}
+
+.sumline span {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.sumline b {
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Подпись над списком: что это за список и сколько в нём. */
+.listcap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 0 4px;
+  font-family: var(--font-head);
+  font-size: var(--fs-lg);
+  font-weight: 800;
+}
+
+.listcap .muted {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+/* Товар в лавке: слева картинка, справа цена и кнопка – как ценник на
+   полке. Метки и пояснение идут ниже, во всю ширину карточки: длинным
+   подписям нужна ширина, а короткие метки не должны ломаться на строки. */
+.shopitem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 8px;
+  align-items: start;
+}
+
+/* В лавке картинка товара – главное, на что смотрит ребёнок. */
+.shopitem .thumb {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 58px;
+  height: 58px;
+  border-radius: 19px;
+}
+
+.shopitem .thumb img {
+  width: 32px;
+  height: 32px;
+}
+
+.shopitem__title {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--font-head);
+  font-size: var(--fs-base);
+  line-height: 1.25;
+  /* Подстраховка: если длинное название вдруг не поместится в колонку,
+     оно перенесётся, а не наедет на цену. */
+  overflow-wrap: break-word;
+}
+
+/* Метки «обязательное» и «каждый период» стоят под названием. */
+.shopitem__marks {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* Здесь метки мельче обычных: это подсказка, а не заголовок. */
+.shopitem__marks .badge {
+  padding: 3px 9px;
+  gap: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.shopitem__marks .badge img {
+  width: 14px;
+  height: 14px;
+}
+
+.shopitem__buy {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  /* Цена и кнопка одной ширины – получается аккуратный ценник. */
+  align-items: stretch;
+  gap: 8px;
+}
+
+.shopitem__buy .price {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.shopitem__buy .btn {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 8px;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+/* Нижняя часть – во всю ширину карточки, по левому краю подложки
+   с картинкой товара. */
+.shopitem__foot {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+/* Что покупка даст питомцу. */
+.effect {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--warm);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.shopitem__foot .badge {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Зачем эта трата: подпись во всю ширину, отдельной строкой. */
+.shopitem__why {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-mute);
+}
+
+.shopitem__why img {
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+/* Самые узкие экраны. Колонка с ценой съедает ширину, и названию вроде
+   «Праздничный торт» уже не хватает места – поэтому цена и кнопка уходят
+   вниз отдельной строкой, а название получает всю ширину карточки. */
+@media (max-width: 359px) {
+  .shopitem {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .shopitem .thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 17px;
+  }
+
+  .shopitem .thumb img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .shopitem__foot {
+    grid-row: 3;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .shopitem__buy {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .shopitem__buy .price {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .shopitem__buy .btn {
+    width: auto;
+    padding: 0 16px;
+  }
+}
+
+.price {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.price__old {
+  color: var(--ink-mute);
+  font-size: 14px;
+  text-decoration-thickness: 2px;
+}
+
+.historyrow {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+
+/* Строка списка с отметкой справа. Колонка отметок фиксированной ширины,
+   отметки не переносятся – иначе их левый и правый край гуляют от строки
+   к строке и список выглядит неаккуратно. */
+.resultrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9.4em;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+
+.resultrow > .badge {
+  justify-content: center;
+  width: 100%;
+  white-space: nowrap;
+}
+
+/* Короткие отметки вроде «+6 очков» не нужно растягивать на всю колонку. */
+.resultrow--short {
+  grid-template-columns: minmax(0, 1fr) 7.2em;
+}
+
+/* План и факт периода. */
+.planfact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  column-gap: 16px;
+  row-gap: 9px;
+  align-items: baseline;
+  font-size: var(--fs-sm);
+}
+
+.planfact__head {
+  color: var(--ink-mute);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.planfact__name {
+  color: var(--ink-soft);
+}
+
+.planfact__num {
+  min-width: 4.6em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.historyrow:last-child {
+  border-bottom: 0;
+}
+
+/* ══════════════ Копилка ══════════════ */
+
+.goalnums {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 14px;
+}
+
+.goalnums__now {
+  font-size: var(--fs-h2);
+}
+
+.goalnums__pct {
+  margin-left: auto;
+  font-family: var(--font-head);
+  font-weight: 800;
+  color: #3d7a42;
+  white-space: nowrap;
+}
+
+.checkbox {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 9px;
+  border: 2px solid var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.linkrow--card.is-on .checkbox {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+/* ══════════════ Задания ══════════════ */
+
+.optionrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  text-align: left;
+  transition: border-color var(--dur), transform var(--dur);
+}
+
+.optionrow:active {
+  transform: scale(0.98);
+}
+
+.optionrow:hover {
+  border-color: var(--lavender);
+}
+
+.optionrow--card {
+  box-shadow: var(--shadow-sm);
+}
+
+.optionrow__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.offercard {
+  text-align: left;
+  border: 2px solid var(--line);
+  transition: border-color var(--dur);
+}
+
+.offercard:hover {
+  border-color: var(--lavender);
+}
+
+.comps {
+  font-size: var(--fs-sm);
+}
+
+.comps summary {
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.comps ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink-soft);
+}
+
+.comps b {
+  color: var(--purple);
+}
+
+/* ══════════════ Прогресс ══════════════ */
+
+/* minmax(0, 1fr) вместо 1fr: иначе колонка не может стать уже своего
+   содержимого и третья стадия вылезает за карточку на узких экранах. */
+.stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.stagecell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 4px;
+  border-radius: var(--r-card);
+  background: var(--warm);
+  text-align: center;
+  font-size: 12px;
+}
+
+.stagecell > b,
+.stagecell .muted {
+  max-width: 100%;
+}
+
+/* Подписи стадий разной длины, поэтому отметку прижимаем к низу –
+   тогда «открыта» и «закрыта» стоят на одной линии. */
+.stagecell .badge {
+  max-width: 100%;
+  margin-top: auto;
+  padding: 3px 6px;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.stagecell .badge img {
+  width: 13px;
+  height: 13px;
+}
+
+.stagecell img {
+  filter: grayscale(1) opacity(0.35);
+  transition: filter var(--dur);
+}
+
+.stagecell.is-on img {
+  filter: none;
+}
+
+.stagecell .muted {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.reasonrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: var(--fs-sm);
+}
+
+.reasonrow span {
+  flex: 1;
+}
+
+.reasonrow__pts {
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.reasonrow__pts.is-on {
+  color: var(--green);
+}
+
+.pfrow {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.pfrow:last-child {
+  border-bottom: 0;
+}
+
+/* ══════════════ Финсловарь ══════════════ */
+
+.term {
+  padding: 0;
+}
+
+.term__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: var(--fs-base);
+}
+
+.term__body {
+  padding: 0 16px 16px;
+  animation: fade-in 200ms ease-out;
+}
+
+/* ══════════════ Подсказки ══════════════ */
+
+.hint {
+  background: #e6f2fb;
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.hint__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  color: #23566f;
+}
+
+.hint__body {
+  padding: 0 16px 16px;
+  font-size: var(--fs-sm);
+  color: #23566f;
+  animation: fade-in 200ms ease-out;
+}
+
+.howto {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bullets {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+/* ══════════════ Раздел для взрослого ══════════════ */
+
+.mathtask {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 38px;
+  letter-spacing: 0.02em;
+  color: var(--purple);
+  padding: 8px 0;
+}
+
+.switchrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.switchrow > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switchrow input[type='checkbox'] {
+  appearance: none;
+  width: 54px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+  position: relative;
+  transition: background var(--dur);
+  cursor: pointer;
+}
+
+.switchrow input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur);
+}
+
+.switchrow input[type='checkbox']:checked {
+  background: var(--green);
+}
+
+.switchrow input[type='checkbox']:checked::after {
+  transform: translateX(22px);
+}
+
+.eventcard {
+  border-color: var(--gold);
+}
+
+/* ══════════════ История финкоинов ══════════════ */
+
+.ledger__totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ledger__totals > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ledger__totals b {
+  font-size: var(--fs-lg);
+}
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+}
+
+.ledger__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ledger__row:last-child {
+  border-bottom: 0;
+}
+
+.ledger__icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.ledger__icon--in {
+  background: #e3f1e4;
+  color: #3d7a42;
+}
+
+.ledger__icon--out {
+  background: #fdeef1;
+  color: #b24a58;
+}
+
+.ledger__icon--save {
+  background: #e6f2fb;
+  color: #2f6f96;
+}
+
+.ledger__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: var(--fs-sm);
+}
+
+.ledger__text .muted {
+  font-size: 13px;
+}
+
+.ledger__sum {
+  flex: none;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+}
+
+.ledger__sum.is-in,
+.ledger__totals .is-in {
+  color: #3d7a42;
+}
+
+/* ══════════════ Цели ребёнка (раздел взрослого) ══════════════ */
+
+.childgoal {
+  padding: 12px 14px;
+  background: var(--warm);
+  border-radius: var(--r-chip);
+}
+
+/* Пополнение нескольких целей: у каждой своя строка со степпером. */
+.depositrow {
+  padding: 12px 14px;
+  background: var(--warm);
+  border-radius: var(--r-chip);
+}

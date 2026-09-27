@@ -1,0 +1,11 @@
+{
+  "appId": "ru.finni.pet",
+  "appName": "Питомец Финни",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
