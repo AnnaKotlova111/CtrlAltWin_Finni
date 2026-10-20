@@ -1,9 +1,10 @@
 /**
- * Тесты закрытия периода и развития питомца.
+ * Тесты закрытия недели и развития питомца.
  */
 
 import { describe, expect, it } from 'vitest';
 
+import { reducer, type Action, type AppState } from '../state/store';
 import { GROWTH_POINTS, STAGE_THRESHOLDS } from './constants';
 import { closePeriod, evaluatePeriod, newPeriod, withinPlan } from './period';
 import { growthToNextStage, stageForGrowth, stageProgress } from './pet';
@@ -38,12 +39,12 @@ describe('соответствие факта плану', () => {
   });
 });
 
-describe('очки развития за период', () => {
+describe('очки развития за неделю', () => {
   const buy = (kind: 'needs' | 'wants', price: number) => ({
     id: 'x', itemId: 'i', title: 't', price, kind, period: 1, at: 0,
   });
 
-  it('идеальный период даёт максимум очков', () => {
+  it('идеальная неделя даёт максимум очков', () => {
     const p = periodWith({
       fact: { needs: 150, wants: 100, savings: 50 },
       purchases: [buy('needs', 150), buy('wants', 100)],
@@ -87,7 +88,7 @@ describe('очки развития за период', () => {
   });
 });
 
-describe('закрытие периода', () => {
+describe('закрытие недели', () => {
   it('очки только накапливаются, стадия не понижается', () => {
     const p = periodWith({ fact: { needs: 0, wants: 0, savings: 0 } });
     const r = closePeriod(p, HUNGRY, 12, 2);
@@ -95,7 +96,7 @@ describe('закрытие периода', () => {
     expect(r.stageAfter).toBe(2);
   });
 
-  it('показатели снижаются один раз за период и не уходят ниже нуля', () => {
+  it('показатели снижаются один раз за неделю и не уходят ниже нуля', () => {
     const p = periodWith({});
     const r = closePeriod(p, { mood: 5, fullness: 5, comfort: 5 }, 0, 1);
     expect(r.statsAfter.mood).toBe(0);
@@ -130,9 +131,51 @@ describe('стадии развития', () => {
     expect(stageProgress(STAGE_THRESHOLDS[2])).toBe(0);
   });
 
-  it('трёх стадий можно достичь за пять периодов идеальной игры', () => {
+  it('трёх стадий можно достичь за пять недель идеальной игры', () => {
     const perPeriod =
       GROWTH_POINTS.needsCovered + GROWTH_POINTS.planFollowed + GROWTH_POINTS.savedAsPlanned + GROWTH_POINTS.questsDone;
     expect(perPeriod * 5).toBeGreaterThanOrEqual(STAGE_THRESHOLDS[3]);
+  });
+});
+
+describe('поздравление с новой стадией', () => {
+  /** Доводит профиль до закрытия недели с переходом на новую стадию. */
+  function closeWeekWithGrowth(week: number): AppState {
+    let state: AppState = { profile: null, feedback: null, ready: true };
+    const create: Action = {
+      type: 'create',
+      payload: { playerName: 'Тест', species: 'finni', color: 'base', petName: 'Финни', isTest: false },
+    };
+    state = reducer(state, create);
+    // Очков уже хватает на вторую стадию – закрытие недели её и покажет.
+    const p = state.profile!;
+    state = {
+      ...state,
+      profile: {
+        ...p,
+        pet: { ...p.pet, growth: STAGE_THRESHOLDS[2], stage: 1 },
+        period: { ...p.period, index: week },
+      },
+    };
+    return reducer(state, { type: 'period/close' });
+  }
+
+  it('подпись про недели склоняется по числу', () => {
+    const forms: Record<number, string> = { 1: 'неделя вместе', 2: 'недели вместе', 5: 'недель вместе' };
+    for (const [week, label] of Object.entries(forms)) {
+      const state = closeWeekWithGrowth(Number(week));
+      const facts = state.feedback!.celebrate!.facts;
+      expect(facts.map((f) => f.label), `неделя ${week}`).toContain(label);
+    }
+  });
+
+  it('в поздравлении настоящие числа: стадия и очки развития', () => {
+    const state = closeWeekWithGrowth(2);
+    const celebrate = state.feedback!.celebrate!;
+    expect(celebrate.kind).toBe('stage');
+    expect(celebrate.facts.find((f) => f.label === 'стадия')!.value).toBe('2 из 3');
+    expect(Number(celebrate.facts.find((f) => f.label === 'очки развития')!.value)).toBeGreaterThanOrEqual(
+      STAGE_THRESHOLDS[2]
+    );
   });
 });

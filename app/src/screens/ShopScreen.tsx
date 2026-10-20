@@ -109,7 +109,7 @@ export function ShopScreen({ nav }: { nav: Nav }) {
                 {item.repeatable && (
                   <span className="badge">
                     <Icon name="refresh" size={14} />
-                    каждый период
+                    каждую неделю
                   </span>
                 )}
               </div>
@@ -157,7 +157,7 @@ export function ShopScreen({ nav }: { nav: Nav }) {
         <section className="card">
           <div className="card__title">
             <Icon name="calendar" size={20} />
-            Куда ушли мои финкоины в этом периоде
+            Куда ушли мои финкоины на этой неделе
           </div>
           <div className="stack--tight stack" style={{ marginTop: 6 }}>
             {profile.period.purchases.map((p) => (

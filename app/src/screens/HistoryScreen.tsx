@@ -1,7 +1,7 @@
 /**
  * «Мои финкоины» – история всех операций ребёнка.
  *
- * Откуда финкоины пришли, куда ушли и что отложено в копилку – по периодам,
+ * Откуда финкоины пришли, куда ушли и что отложено в копилку – по неделям,
  * самые свежие сверху. Знак «+» или «−» стоит у каждой суммы, так что
  * направление понятно и без цвета.
  */
@@ -134,7 +134,7 @@ export function HistoryScreen({ nav }: { nav: Nav }) {
           <section key={period} className="card">
             <div className="card__title">
               <Icon name="calendar" size={18} />
-              Период {period}
+              Неделя {period}
               {period === profile.period.index && <span className="badge">сейчас</span>}
             </div>
             <div className="ledger">

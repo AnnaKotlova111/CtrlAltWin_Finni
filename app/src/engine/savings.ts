@@ -16,7 +16,7 @@
  * Все функции чистые: принимают профиль и возвращают новый.
  */
 
-import type { Goal, Profile, SavingRecord } from './types';
+import type { Goal, PeriodState, Profile, SavingRecord } from './types';
 
 export interface Ctx {
   uid: () => string;
@@ -46,8 +46,69 @@ export function totalSaved(p: Pick<Profile, 'savedByGoal'>): number {
  * Настоящие пополнения цели – для расчёта среднего и срока.
  * Перенос с другой цели пополнением не считается.
  */
+/**
+ * Сколько из запланированного на неделю ещё не ушло в копилку.
+ *
+ * План ребёнок составляет в начале недели, а переводит деньги отдельным
+ * действием – между этими двумя шагами легко забыть, и до итогов об этом
+ * никто не напомнит. Пока остаток больше нуля, игра напоминает сама.
+ */
+export function plannedSavingsLeft(period: PeriodState): number {
+  if (!period.planConfirmed || !period.plan) return 0;
+  return Math.max(0, period.plan.savings - period.fact.savings);
+}
+
+/**
+ * Как разложить одну сумму по целям: поровну, но не больше, чем каждой
+ * осталось до мечты. Излишек уходит остальным целям.
+ *
+ * Нужно для кнопки «Отложить»: ребёнок называет сумму один раз, а дальше
+ * игра показывает в подтверждении, кому сколько достанется.
+ */
+export function spreadDeposit(p: Profile, amount: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  let left = Math.max(0, Math.floor(amount));
+  const room = (id: string) => roomOn(p, id) - (out[id] ?? 0);
+  let ids = p.activeGoalIds.filter((id) => room(id) > 0);
+
+  while (left > 0 && ids.length > 0) {
+    const share = Math.max(1, Math.floor(left / ids.length));
+    for (const id of ids) {
+      if (left <= 0) break;
+      const give = Math.min(share, left, room(id));
+      if (give <= 0) continue;
+      out[id] = (out[id] ?? 0) + give;
+      left -= give;
+    }
+    ids = ids.filter((id) => room(id) > 0);
+  }
+  return out;
+}
+
 export function contributionsTo(log: SavingRecord[], goalId: string): number[] {
   return log.filter((r) => r.goalId === goalId && r.amount > 0 && !r.movedFrom).map((r) => r.amount);
+}
+
+/**
+ * Сколько уходило в копилку каждую неделю, по порядку.
+ *
+ * Темп считается именно по неделям, а не по отдельным пополнениям:
+ * три пополнения по 10 Φ за одну неделю – это темп 30 Φ за неделю, а не 10.
+ * Без `goalId` считаются все цели сразу – так виден общий темп ребёнка.
+ */
+export function contributionsByPeriod(
+  log: SavingRecord[],
+  goalId?: string
+): { period: number; amount: number }[] {
+  const byPeriod = new Map<number, number>();
+  for (const r of log) {
+    if (r.amount <= 0 || r.movedFrom) continue;
+    if (goalId && r.goalId !== goalId) continue;
+    byPeriod.set(r.period, (byPeriod.get(r.period) ?? 0) + r.amount);
+  }
+  return [...byPeriod.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([period, amount]) => ({ period, amount }));
 }
 
 function withRecords(p: Profile, records: SavingRecord[]): Profile {

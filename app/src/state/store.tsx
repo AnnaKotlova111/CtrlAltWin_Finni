@@ -36,20 +36,23 @@ import {
   applyStats,
   canAfford,
   money,
-  periodsToGoal,
-  periodsWord,
+  FAR_AWAY_PERIODS,
+  savingsForecast,
+  suggestedPace,
+  weeksWord,
   statsDiff,
 } from '../engine/economy';
 import { closePeriod, newPeriod } from '../engine/period';
 import {
   achieve,
   activate,
-  contributionsTo,
+  contributionsByPeriod,
   deposit,
   goalById,
   remove,
   savedOn,
   spendFromSavings,
+  spreadDeposit,
   totalSaved,
   withdraw,
 } from '../engine/savings';
@@ -78,10 +81,66 @@ import {
 } from './storage';
 
 /** Что показать ребёнку после действия. */
+/**
+ * Повод для большого поздравления.
+ *
+ * Исполненная мечта и новая стадия – два момента, ради которых ребёнок
+ * вообще копит. Раньше они выглядели как обычное действие: строчка в окне
+ * обратной связи, такая же, как после покупки еды. Теперь это заметное
+ * событие с портретом питомца и настоящими числами.
+ */
+export interface Celebration {
+  kind: 'goal' | 'stage';
+  /** Главная строка: название мечты или новой стадии. */
+  headline: string;
+  /** Короткие плашки с числами: «520 Φ», «6 недель». */
+  facts: { label: string; value: string }[];
+}
+
+/**
+ * Шаг, который логично сделать прямо сейчас, – кнопкой в окне.
+ *
+ * Пока такой шаг один: отложить в копилку сразу после того, как ребёнок
+ * составил план. Правило «сначала отложи» работает, только если между
+ * решением и действием нет лишних экранов.
+ */
+export interface FeedbackAction {
+  label: string;
+  action: Action;
+  /** О чём спросить перед действием: деньги не уходят от одного нажатия. */
+  confirm?: { title: string; body: string };
+}
+
+/** Один и тот же вопрос перед переводом – и в окне, и на главном экране. */
+export function depositConfirmText(parts: { title: string; amount: number }[]) {
+  const total = parts.reduce((sum, part) => sum + part.amount, 0);
+  const body =
+    parts.length === 1
+      ? `Финкоины уйдут с баланса в копилку на мечту «${parts[0].title}». Снять их можно в любой момент – мечта просто отодвинется`
+      : `Финкоины уйдут с баланса в копилку: ${parts
+          .map((part) => `«${part.title}» +${money(part.amount)}`)
+          .join(', ')}. Снять их можно в любой момент`;
+  return { title: `Отложить ${money(total)}?`, body };
+}
+
+/** Как разложить запланированное по целям и как об этом спросить. */
+export function depositPlan(p: Profile, amount: number) {
+  const amounts = spreadDeposit(p, amount);
+  const parts = Object.entries(amounts).map(([goalId, value]) => ({
+    title: goalById(p, goalId)?.title ?? 'мечта',
+    amount: value,
+  }));
+  const total = parts.reduce((sum, part) => sum + part.amount, 0);
+  return { amounts, parts, total };
+}
+
 export interface Feedback {
   id: string;
   title: string;
   tone: 'good' | 'info' | 'warn';
+  act?: FeedbackAction;
+  /** Большое поздравление наверху окна – только для редких событий. */
+  celebrate?: Celebration;
   /** «Что изменилось и почему» – по строке на изменение. */
   lines: string[];
   /** Реплика питомца в его характере. */
@@ -223,7 +282,7 @@ function activateGoal(state: AppState, p: Profile, goal: Goal, replaceId: string
   lines.push(
     goal.custom
       ? 'Своя цель – копить на неё ещё интереснее'
-      : 'Пополняй копилку каждый период – так цель становится ближе'
+      : 'Пополняй копилку каждую неделю – так цель становится ближе'
   );
 
   return {
@@ -256,7 +315,7 @@ export function reducer(state: AppState, action: Action): AppState {
         /*
          * В демонстрационном режиме первым делом объясняем сам режим:
          * эксперт должен сразу понимать, чем «Следующий день» отличается
-         * от «Подвести итоги периода» и почему события ждать не нужно.
+         * от «Подвести итоги недели» и почему события ждать не нужно.
          */
         feedback: isTest
           ? {
@@ -265,9 +324,9 @@ export function reducer(state: AppState, action: Action): AppState {
               tone: 'info',
               lines: [
                 `Профиль готов заранее: имя, питомец и цель уже выбраны, на балансе ${money(profile.balance)}`,
-                '«Подвести итоги периода» внизу главного экрана закрывает период: сравнивает план с фактом, начисляет очки развития и выдаёт финкоины следующего периода',
+                '«Подвести итоги недели» внизу главного экрана закрывает неделю: сравнивает план с фактом, начисляет очки развития и выдаёт финкоины следующей недели',
                 '«Следующий день» рядом возвращает бонус за вход. В обычной игре он появляется раз в календарный день, здесь ждать не нужно',
-                'Начиная со второго периода в каждом есть событие – подарок или непредвиденный расход. Пока событие не решено, период не закрывается',
+                'Начиная со второй недели на каждой есть событие – подарок или непредвиденный расход. Пока событие не решено, неделя не закрывается',
                 'Все задания открыты сразу, по времени ничего не блокируется',
               ],
               petLine: petSays(profile.pet.species, 'greet'),
@@ -278,7 +337,7 @@ export function reducer(state: AppState, action: Action): AppState {
               title: 'Стартовый бюджет получен',
               tone: 'good',
               lines: [
-                `Начислено ${money(profile.balance)} – это твои финкоины на первый период`,
+                `Начислено ${money(profile.balance)} – это твои финкоины на первую неделю`,
                 'Баланс никогда не меняется просто так: у каждого начисления есть источник',
               ],
               petLine: petSays(profile.pet.species, 'greet'),
@@ -295,6 +354,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'plan/confirm': {
       if (!p || !p.period.plan) return state;
       const plan = p.period.plan;
+      // «Сначала отложи»: предлагаем перевести запланированное сразу, пока
+      // деньги не разошлись. Если мечт несколько, сумма делится между ними,
+      // а подтверждение называет, кому сколько достанется.
+      const atOnce = depositPlan(p, Math.min(plan.savings, p.balance));
       return {
         ...state,
         profile: { ...p, period: { ...p.period, planConfirmed: true } },
@@ -302,9 +365,17 @@ export function reducer(state: AppState, action: Action): AppState {
           id: uid(),
           title: 'План подтверждён',
           tone: 'good',
+          act:
+            atOnce.total > 0
+              ? {
+                  label: `Отложить ${money(atOnce.total)} в копилку`,
+                  action: { type: 'savings/deposit', amounts: atOnce.amounts },
+                  confirm: depositConfirmText(atOnce.parts),
+                }
+              : undefined,
           lines: [
             `Обязательное – ${money(plan.needs)}, желаемое – ${money(plan.wants)}, в копилку – ${money(plan.savings)}`,
-            'Теперь трать по плану. В конце периода сравним план с фактом',
+            'Теперь трать по плану. В конце недели сравним план с фактом',
           ],
           petLine: petSays(p.pet.species, 'greet', plan.savings),
           nextStep: 'Начни с обязательных покупок – от них зависит сытость питомца',
@@ -388,7 +459,7 @@ export function reducer(state: AppState, action: Action): AppState {
           petLine: petSays(p.pet.species, item.kind === 'needs' ? 'buyNeed' : 'buyWant', item.price),
           nextStep:
             plannedLeft !== null && plannedLeft < 0
-              ? 'Перенеси следующую необязательную покупку на новый период – план ещё можно выровнять'
+              ? 'Перенеси следующую необязательную покупку на новую неделю – план ещё можно выровнять'
               : null,
           statsDelta: gained,
         },
@@ -412,9 +483,14 @@ export function reducer(state: AppState, action: Action): AppState {
           reachedAny = true;
           line += ' Цель накоплена!';
         } else {
-          const eta = periodsToGoal(remaining, contributionsTo(profile.savingsLog, d.goalId));
-          if (eta && eta.periods > 0) {
-            line += ` Если откладывать в среднем по ${money(eta.average)}, осталось примерно ${eta.periods} ${periodsWord(eta.periods)}`;
+          const eta = savingsForecast(remaining, contributionsByPeriod(profile.savingsLog, d.goalId));
+          if (eta && eta.periods <= FAR_AWAY_PERIODS) {
+            line += ` В таком темпе – по ${money(eta.pace)} за неделю – до цели осталось примерно ${eta.periods} ${weeksWord(eta.periods)}`;
+          } else {
+            // Сроки в десятки недель ничего не объясняют: лучше подсказать сумму.
+            const advice = suggestedPace(remaining, INCOME_REGULAR);
+            const advicePeriods = Math.ceil(remaining / advice);
+            line += ` Если откладывать по ${money(advice)} за неделю, до цели останется примерно ${advicePeriods} ${weeksWord(advicePeriods)}`;
           }
         }
         lines.push(line);
@@ -456,7 +532,7 @@ export function reducer(state: AppState, action: Action): AppState {
             'Прогресс по этой цели уменьшился – но его можно вернуть следующим пополнением',
           ],
           petLine: petSays(p.pet.species, 'planOff', res.amount),
-          nextStep: 'Отложи эту сумму обратно в следующем периоде – цель снова приблизится',
+          nextStep: 'Отложи эту сумму обратно на следующей неделе – цель снова приблизится',
         },
       };
     }
@@ -525,13 +601,26 @@ export function reducer(state: AppState, action: Action): AppState {
       const goal = goalById(p, action.goalId);
       const profile = goal ? achieve(p, goal.id, { uid, now: Date.now() }) : null;
       if (!goal || !profile) return state;
+      // Сколько недель шло к мечте – по настоящим пополнениям, а не по дате
+      // появления цели: так число совпадает с тем, что ребёнок видел в копилке.
+      const paidWeeks = contributionsByPeriod(p.savingsLog, goal.id);
+      const since = paidWeeks.length > 0 ? paidWeeks[0].period : p.period.index;
+      const weeks = Math.max(1, p.period.index - since + 1);
       return {
         ...state,
         profile,
         feedback: {
           id: uid(),
-          title: `Мечта исполнена: ${goal.title}!`,
+          title: 'Мечта исполнена!',
           tone: 'good',
+          celebrate: {
+            kind: 'goal',
+            headline: goal.title,
+            facts: [
+              { label: 'отложено', value: money(goal.price) },
+              { label: 'путь к мечте', value: `${weeks} ${weeksWord(weeks)}` },
+            ],
+          },
           lines: [
             `${money(goal.price)} из копилки ушли на эту мечту`,
             'Мечта теперь в списке «Исполненные мечты», а в копилке освободилось место для новой цели',
@@ -632,7 +721,7 @@ export function reducer(state: AppState, action: Action): AppState {
               id: uid(),
               title: 'На балансе не хватает',
               tone: 'warn',
-              lines: [`Нужно ${money(ev.amount)}, на балансе ${money(p.balance)}`, '• Можно взять из копилки', '• Можно перенести на следующий период'],
+              lines: [`Нужно ${money(ev.amount)}, на балансе ${money(p.balance)}`, '• Можно взять из копилки', '• Можно перенести на следующую неделю'],
               petLine: petSays(p.pet.species, 'noMoney', ev.amount),
               nextStep: 'Выбери другой вариант – отрицательный баланс в игре невозможен',
             },
@@ -661,7 +750,7 @@ export function reducer(state: AppState, action: Action): AppState {
               tone: 'warn',
               lines: [`Нужно ${money(ev.amount)}, в копилке ${money(totalSaved(p))}`],
               petLine: petSays(p.pet.species, 'noMoney', ev.amount),
-              nextStep: 'Выбери оплату с баланса или перенос на следующий период',
+              nextStep: 'Выбери оплату с баланса или перенос на следующую неделю',
             },
           };
         }
@@ -677,7 +766,7 @@ export function reducer(state: AppState, action: Action): AppState {
           stats,
           period: { ...profile.period, carriedEvent: { eventId: ev.id, amount: ev.amount } },
         };
-        lines.push('Трата перенесена: она появится в начале следующего периода');
+        lines.push('Трата перенесена: она появится в начале следующей недели');
       }
 
       return {
@@ -738,7 +827,7 @@ export function reducer(state: AppState, action: Action): AppState {
           lines: [
             'Бонус за вход снова доступен – в обычной игре он появляется раз в календарный день',
             'Задание дня обновилось',
-            'Период не изменился: чтобы закрыть его, нужно подвести итоги',
+            'Неделя не изменилась: чтобы закрыть её, нужно подвести итоги',
           ],
           petLine: null,
           nextStep: 'Забери бонус наверху, рядом с балансом',
@@ -764,7 +853,7 @@ export function reducer(state: AppState, action: Action): AppState {
           tone: 'good',
           lines: [
             'Это демо-режим: стадия переключена вручную',
-            'В обычной игре питомец растёт от очков развития за период',
+            'В обычной игре питомец растёт от очков развития за неделю',
           ],
           petLine: null,
           nextStep: null,
@@ -820,12 +909,24 @@ export function reducer(state: AppState, action: Action): AppState {
         profile,
         feedback: {
           id: uid(),
-          title: grew ? 'Новая стадия развития!' : `Период ${summary.period} завершён`,
+          title: grew ? 'Новая стадия развития!' : `Неделя ${summary.period} завершена`,
           tone: grew ? 'good' : summary.growthGained >= 4 ? 'good' : 'info',
+          celebrate: grew
+            ? {
+                kind: 'stage',
+                headline: species(p.pet.species).stageNames[stageAfter - 1],
+                facts: [
+                  { label: 'стадия', value: `${stageAfter} из 3` },
+                  { label: 'очки развития', value: String(growthAfter) },
+                  // Подпись склоняем: «2 недель вместе» читалось как ошибка.
+                  { label: `${weeksWord(summary.period)} вместе`, value: String(summary.period) },
+                ],
+              }
+            : undefined,
           lines: [
             summary.verdict,
-            `Очков развития за период: +${summary.growthGained}`,
-            `Начислено ${money(INCOME_REGULAR)} – карманные финкоины нового периода`,
+            `Очков развития за неделю: +${summary.growthGained}`,
+            `Начислено ${money(INCOME_REGULAR)} – карманные финкоины новой недели`,
             ...carryLines,
           ],
           petLine: petSays(p.pet.species, grew ? 'stageUp' : summary.growthGained >= 4 ? 'planOk' : 'planOff', summary.period),

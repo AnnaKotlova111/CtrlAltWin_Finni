@@ -3,7 +3,7 @@
  *
  * Состояние (настроение, сытость, комфорт) меняется после каждого
  * финансового решения. Развитие (стадия) зависит от совокупности решений
- * за несколько периодов и никогда не откатывается назад.
+ * за несколько недель и никогда не откатывается назад.
  */
 
 import { FULLNESS_OK, STAGE_THRESHOLDS } from './constants';
@@ -55,15 +55,55 @@ export function moodLabel(stats: PetStats): { key: MoodLabel; title: string; ico
 }
 
 /**
+ * Причины настроения по порядку: ребёнку показывается первая подходящая.
+ *
+ * `toShop` – нужно ли из этой строки вести в лавку. Когда питомцу чего-то
+ * не хватает, причина упирается в покупки. Когда всё хорошо, идти в лавку
+ * незачем, и строка остаётся просто объяснением.
+ */
+const MOOD_REASONS: { fits: (stats: PetStats) => boolean; text: string; toShop: boolean }[] = [
+  {
+    fits: (stats) => stats.fullness < FULLNESS_OK,
+    text: 'Питомец проголодался – не хватает обязательных покупок',
+    toShop: true,
+  },
+  {
+    fits: (stats) => stats.comfort < 35,
+    text: 'В комнате неуютно: давно не было покупок на уход',
+    toShop: true,
+  },
+  {
+    fits: (stats) => stats.mood < 35,
+    text: 'Давно не было ничего приятного – настроение просело',
+    toShop: true,
+  },
+  {
+    fits: (stats) => stats.mood >= 75 && stats.fullness >= 75,
+    text: 'Питомец сыт и доволен: обязательное закрыто, приятное тоже было',
+    toShop: false,
+  },
+  {
+    fits: () => true,
+    text: 'Всё в порядке: обязательное закрыто, настроение ровное',
+    toShop: false,
+  },
+];
+
+function moodCase(stats: PetStats) {
+  return MOOD_REASONS.find((reason) => reason.fits(stats)) ?? MOOD_REASONS[MOOD_REASONS.length - 1];
+}
+
+/**
  * Короткое объяснение, почему настроение именно такое.
  * Ребёнку всегда видно причину изменения.
  */
 export function moodReason(stats: PetStats): string {
-  if (stats.fullness < FULLNESS_OK) return 'Питомец проголодался – не хватает обязательных покупок';
-  if (stats.comfort < 35) return 'В комнате неуютно: давно не было покупок на уход';
-  if (stats.mood < 35) return 'Давно не было ничего приятного – настроение просело';
-  if (stats.mood >= 75 && stats.fullness >= 75) return 'Питомец сыт и доволен: обязательное закрыто, приятное тоже было';
-  return 'Всё в порядке: обязательное закрыто, настроение ровное';
+  return moodCase(stats).text;
+}
+
+/** Есть ли в этой причине то, что лечится покупкой. */
+export function moodNeedsShop(stats: PetStats): boolean {
+  return moodCase(stats).toShop;
 }
 
 export const STAT_TITLES: Record<keyof PetStats, string> = {

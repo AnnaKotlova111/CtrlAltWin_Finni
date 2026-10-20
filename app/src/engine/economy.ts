@@ -104,7 +104,7 @@ export function canAfford(balance: number, price: number, savings: number): Affo
   const missing = price - balance;
   const options = [
     'Выбрать что-нибудь подешевле',
-    'Отложить эту покупку на следующий период',
+    'Отложить эту покупку на следующую неделю',
     'Выполнить задание и получить финкоины',
   ];
   if (savings >= missing) {
@@ -142,26 +142,105 @@ export function statsDiff(before: PetStats, after: PetStats): Partial<PetStats> 
 }
 
 /**
- * Примерный срок достижения цели в игровых периодах.
+ * Примерный срок достижения цели в игровых неделях.
  * Считается по средней сумме регулярного пополнения – как требует ТЗ 2.5.7.
  * Если пополнений ещё не было, срок не показывается.
  */
-export function periodsToGoal(
-  remaining: number,
-  contributions: number[]
-): { periods: number; average: number } | null {
-  if (remaining <= 0) return { periods: 0, average: 0 };
-  if (contributions.length === 0) return null;
-  const average = contributions.reduce((s, c) => s + c, 0) / contributions.length;
-  if (average <= 0) return null;
-  return { periods: Math.ceil(remaining / average), average: Math.round(average) };
+/** По скольким последним неделям считается нынешний темп. */
+const RECENT_PERIODS = 2;
+
+/** За столько недель цель считается достижимой «на глаз». */
+const COMFORTABLE_PERIODS = 10;
+
+/** Больше этого срока числа ребёнку уже ничего не говорят. */
+export const FAR_AWAY_PERIODS = 24;
+
+export interface SavingsForecast {
+  /** Сколько уходит в копилку за неделю сейчас. */
+  pace: number;
+  /** Сколько недель до цели при нынешнем темпе. */
+  periods: number;
+  /** В скольких неделях копилку вообще пополняли. */
+  periodsFilled: number;
 }
 
-/** Русское склонение слова «период». */
-export function periodsWord(n: number): string {
+/**
+ * Прогноз накопления по тому, сколько ребёнок откладывает на самом деле.
+ *
+ * Темп – это две последние недели, считая от последнего пополнения.
+ * Окно короткое нарочно: при трёх неделях один давний крупный взнос
+ * перевешивал свежие маленькие, и игра сообщала, что темп вырос, когда он упал.
+ * Недели без пополнений внутри окна считаются нулями: пропустил неделю –
+ * темп упал, и срок честно вырос.
+ *
+ * Пока пополнений не было, прогноза нет: придумывать темп за ребёнка нечестно.
+ */
+export function savingsForecast(
+  remaining: number,
+  byPeriod: { period: number; amount: number }[]
+): SavingsForecast | null {
+  if (remaining <= 0) return null;
+  const filled = byPeriod.filter((p) => p.amount > 0);
+  if (filled.length === 0) return null;
+
+  const first = filled[0].period;
+  const last = filled[filled.length - 1].period;
+  const windowFrom = Math.max(first, last - (RECENT_PERIODS - 1));
+  const sum = byPeriod
+    .filter((p) => p.period >= windowFrom && p.period <= last)
+    .reduce((total, p) => total + p.amount, 0);
+
+  const pace = Math.round(sum / (last - windowFrom + 1));
+  if (pace <= 0) return null;
+
+  return { pace, periods: Math.ceil(remaining / pace), periodsFilled: filled.length };
+}
+
+/**
+ * Сколько стоит откладывать, чтобы цель не висела годами.
+ *
+ * Считается от самой цели: такая сумма, при которой до неё остаётся около
+ * десяти недель. Но не больше половины карманных за неделю – иначе совет
+ * невыполним, а невыполнимый совет хуже, чем никакого. Округляем до десятка:
+ * «по 60 Φ» запоминается, «по 57 Φ» – нет.
+ */
+export function suggestedPace(remaining: number, incomePerPeriod: number): number {
+  const needed = Math.ceil(remaining / COMFORTABLE_PERIODS / 10) * 10;
+  const affordable = Math.floor(incomePerPeriod / 2 / 10) * 10;
+  return Math.max(10, Math.min(needed, affordable));
+}
+
+/**
+ * Сколько финкоинов нужно оставить на обязательное на этой неделе.
+ *
+ * Если план составлен, считаем по нему: сколько обязательного ещё не куплено.
+ * Если плана нет, берём минимальный набор еды – иначе игра молчала бы,
+ * пока ребёнок уносит в копилку всё до копейки.
+ */
+export function needsReserve(
+  plan: { needs: number } | null,
+  factNeeds: number,
+  fallback: number
+): number {
+  if (!plan) return fallback;
+  return Math.max(0, plan.needs - factNeeds);
+}
+
+/** Русское склонение слова «неделя». */
+export function weeksWord(n: number): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'период';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'периода';
-  return 'периодов';
+  if (mod10 === 1 && mod100 !== 11) return 'неделя';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'недели';
+  return 'недель';
+}
+
+/**
+ * Форма после «через» и «за»: через неделю, через 2 недели, через 5 недель.
+ *
+ * Отдельно от `weeksWord`, потому что сама по себе это «1 неделя», а после
+ * предлога – «через 1 неделю». Расходятся только на единице.
+ */
+export function weeksAfter(n: number): string {
+  return n % 10 === 1 && n % 100 !== 11 ? 'неделю' : weeksWord(n);
 }

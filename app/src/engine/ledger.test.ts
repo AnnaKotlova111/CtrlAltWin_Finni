@@ -37,7 +37,7 @@ const questDone = (id: string, optionId: string): Action => ({
 });
 
 describe('история финкоинов сходится с балансом', () => {
-  it('после всех видов операций за три периода', () => {
+  it('после всех видов операций за три недели', () => {
     const state = run([
       create,
       { type: 'goal/add', goalId: 'scooter' },
@@ -54,11 +54,11 @@ describe('история финкоинов сходится с балансом
       { type: 'daily/claim' },
       { type: 'parent/bonus', amount: 30, reason: 'Помощь по дому' },
       { type: 'period/close' },
-      // период 2: приятное событие – подарок
+      // неделя 2: приятное событие – подарок
       { type: 'event/resolve', optionId: 'ok' },
       { type: 'savings/deposit', amounts: { scooter: 100 } },
       { type: 'period/close' },
-      // период 3: осмотр оплачиваем из копилки – мимо баланса
+      // неделя 3: осмотр оплачиваем из копилки – мимо баланса
       { type: 'event/resolve', optionId: 'savings' },
       { type: 'buy', itemId: 'water' },
       // перенос между целями и возврат на баланс
@@ -77,12 +77,12 @@ describe('история финкоинов сходится с балансом
     }
   });
 
-  it('когда трата перенесена на следующий период', () => {
+  it('когда трата перенесена на следующую неделю', () => {
     const state = run([
       create,
       { type: 'period/close' },
       { type: 'period/close' },
-      { type: 'event/resolve', optionId: 'postpone' }, // осмотр – в период 4
+      { type: 'event/resolve', optionId: 'postpone' }, // осмотр – на неделю 4
       { type: 'period/close' },
     ]);
     expect(ledgerBalance(state)).toBe(state.profile!.balance);

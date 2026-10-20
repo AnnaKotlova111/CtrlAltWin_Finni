@@ -21,30 +21,108 @@ import {
   CUSTOM_GOAL_MAX_PRICE,
   CUSTOM_GOAL_MIN_PRICE,
   CUSTOM_GOAL_TITLE_MAX,
+  INCOME_REGULAR,
   MAX_ACTIVE_GOALS,
+  NEEDS_RESERVE,
 } from '../engine/constants';
-import { money, periodsToGoal, periodsWord } from '../engine/economy';
-import { contributionsTo } from '../engine/savings';
+import {
+  FAR_AWAY_PERIODS,
+  money,
+  needsReserve,
+  weeksAfter,
+  weeksWord,
+  savingsForecast,
+  suggestedPace,
+} from '../engine/economy';
+import { contributionsByPeriod } from '../engine/savings';
 import { useStore } from '../state/store';
 import type { Nav } from '../App';
 import type { Goal } from '../engine/types';
 
 const STEP = 10;
 
+/** Суммы для прикидки «а если откладывать по…» – те же, что в быстрых кнопках. */
+const TRY_AMOUNTS = [20, 50, 100];
+
+
+
 /** Цель, которую выбрали в списке или придумали, – ждёт решения «копить на все или заменить». */
 type Pending =
   | { kind: 'existing'; goal: Goal }
   | { kind: 'new'; title: string; price: number; icon: string };
 
-function Eta({ remaining, contributions }: { remaining: number; contributions: number[] }) {
-  const eta = periodsToGoal(remaining, contributions);
-  if (!eta) {
-    return <span className="muted">Срок покажем после первого пополнения этой цели</span>;
+/**
+ * Что будет, если откладывать столько каждую неделю.
+ *
+ * Ребёнок крутит сумму и тут же видит ответ: больше кладёшь – ближе цель.
+ * Это главное, что должно остаться в голове после экрана копилки.
+ */
+function DepositPreview({
+  amount,
+  remaining,
+  title,
+}: {
+  amount: number;
+  remaining: number;
+  title: string;
+}) {
+  if (amount <= 0 || remaining <= 0) return null;
+  const periods = Math.ceil(remaining / amount);
+  const advice = suggestedPace(remaining, INCOME_REGULAR);
+  const advicePeriods = Math.ceil(remaining / advice);
+  const slow = periods > FAR_AWAY_PERIODS && advice > amount;
+
+  return (
+    <div className="savecalc">
+      <div className="savecalc__line">
+        <Icon name="calendar" size={18} />
+        <span>
+          Если откладывать столько каждую неделю – «{title}» через <b>{periods}</b>{' '}
+          {weeksAfter(periods)}
+        </span>
+      </div>
+      {slow && (
+        <p className="savecalc__hint">
+          По {money(amount)} копить долго. А по {money(advice)} – цель будет твоей через{' '}
+          {advicePeriods} {weeksAfter(advicePeriods)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Срок до цели – одной фразой.
+ *
+ * Темп берётся настоящий, по пополнениям ребёнка. Если он такой, что цель
+ * почти не двигается, вместо огромного числа игра подсказывает сумму,
+ * с которой цель станет достижимой: ребёнку нужен следующий шаг, а не
+ * сообщение «осталось 258 недель».
+ */
+function Eta({
+  remaining,
+  byPeriod,
+}: {
+  remaining: number;
+  byPeriod: { period: number; amount: number }[];
+}) {
+  const f = savingsForecast(remaining, byPeriod);
+  const advice = suggestedPace(remaining, INCOME_REGULAR);
+  const advicePeriods = Math.ceil(remaining / advice);
+
+  if (!f || f.periods > FAR_AWAY_PERIODS) {
+    return (
+      <span className="muted">
+        Если откладывать по {money(advice)} за неделю, цель будет твоей примерно через{' '}
+        <b>{advicePeriods}</b> {weeksAfter(advicePeriods)}
+      </span>
+    );
   }
+
   return (
     <span className="muted">
-      Если откладывать в среднем по {money(eta.average)}, цель будет твоей примерно через{' '}
-      <b>{eta.periods}</b> {periodsWord(eta.periods)}.
+      В копилку уходит по {money(f.pace)} за неделю – цель будет твоей примерно через{' '}
+      <b>{f.periods}</b> {weeksAfter(f.periods)}
     </span>
   );
 }
@@ -53,15 +131,17 @@ function Eta({ remaining, contributions }: { remaining: number; contributions: n
 function GoalCard({
   goal,
   saved,
-  contributions,
+  byPeriod,
   onRemove,
   onAchieve,
+  onTry,
 }: {
   goal: Goal;
   saved: number;
-  contributions: number[];
+  byPeriod: { period: number; amount: number }[];
   onRemove: () => void;
   onAchieve: () => void;
+  onTry: (amount: number) => void;
 }) {
   const remaining = Math.max(0, goal.price - saved);
   const reached = remaining === 0;
@@ -114,7 +194,27 @@ function GoalCard({
             Осталось накопить <b>{money(remaining)}</b>
           </p>
           <div style={{ marginTop: 4 }}>
-            <Eta remaining={remaining} contributions={contributions} />
+            <Eta remaining={remaining} byPeriod={byPeriod} />
+          </div>
+
+          {/* Зависимость «больше откладываешь – ближе цель» показываем готовыми
+              вариантами: так её видно без единого нажатия. Нажатие подставляет
+              сумму в пополнение – от мысли сразу к действию. */}
+          <div className="whatif">
+            <span className="whatif__cap">А если откладывать</span>
+            <div className="whatif__row">
+              {TRY_AMOUNTS.map((v) => {
+                const periods = Math.ceil(remaining / v);
+                return (
+                  <button key={v} className="whatif__item" onClick={() => onTry(v)}>
+                    <b>по {money(v)}</b>
+                    <span>
+                      {periods} {weeksWord(periods)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </>
       )}
@@ -140,11 +240,25 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
   const log = profile.savingsLog;
   const saved = (id: string) => profile.savedByGoal[id] ?? 0;
 
-  // Для прикидки срока своей цели: как ребёнок обычно откладывает (или 100 Φ, если ещё ни разу).
-  const deposits = log.filter((r) => r.amount > 0 && !r.movedFrom).map((r) => r.amount);
-  const averageDeposit = deposits.length
-    ? Math.round(deposits.reduce((a, b) => a + b, 0) / deposits.length)
-    : 100;
+  /*
+   * Темп для прикидки срока своей цели – по всем целям сразу.
+   * Если пополнений ещё не было, темпа нет: раньше здесь подставлялись
+   * выдуманные 100 Φ, и срок выглядел настоящим, хотя был взят с потолка.
+   */
+  const paceByPeriod = contributionsByPeriod(log);
+  const pace = paceByPeriod.length
+    ? Math.round(
+        paceByPeriod.slice(-3).reduce((s, p) => s + p.amount, 0) /
+          Math.min(3, paceByPeriod.length)
+      )
+    : 0;
+
+  // Сколько нельзя уносить в копилку: обязательное этой недели.
+  const reserve = needsReserve(
+    profile.period.planConfirmed ? profile.period.plan : null,
+    profile.period.fact.needs,
+    NEEDS_RESERVE
+  );
 
   const atLimit = activeGoals.length >= MAX_ACTIVE_GOALS;
   const openGoals = activeGoals.filter((x) => x.saved < x.goal.price);
@@ -152,6 +266,8 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
 
   /* ── пополнение: сумма по каждой цели ── */
   const depositTotal = openGoals.reduce((s, x) => s + (amounts[x.goal.id] ?? 0), 0);
+  const balanceAfter = profile.balance - depositTotal;
+  const needsWarning = depositTotal > 0 && balanceAfter < reserve;
   const maxFor = (goal: Goal) =>
     Math.max(0, Math.min(goal.price - saved(goal.id), profile.balance - (depositTotal - (amounts[goal.id] ?? 0))));
   const setAmount = (id: string, v: number) => setAmounts((a) => ({ ...a, [id]: v }));
@@ -159,9 +275,9 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
   /* ── снятие: с конкретной цели ── */
   const wItem = goalsWithMoney.find((x) => x.goal.id === withdrawGoalId) ?? goalsWithMoney[0] ?? null;
   const wAmount = wItem ? Math.min(withdrawAmount, wItem.saved) : 0;
-  const wContrib = wItem ? contributionsTo(log, wItem.goal.id) : [];
-  const etaNow = wItem ? periodsToGoal(wItem.goal.price - wItem.saved, wContrib) : null;
-  const etaAfter = wItem ? periodsToGoal(wItem.goal.price - (wItem.saved - wAmount), wContrib) : null;
+  const wContrib = wItem ? contributionsByPeriod(log, wItem.goal.id) : [];
+  const etaNow = wItem ? savingsForecast(wItem.goal.price - wItem.saved, wContrib) : null;
+  const etaAfter = wItem ? savingsForecast(wItem.goal.price - (wItem.saved - wAmount), wContrib) : null;
 
   const remark = savingsRemark(
     savingsMood(activeGoals.map((x) => ({ price: x.goal.price, saved: x.saved }))),
@@ -252,9 +368,10 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
             key={goal.id}
             goal={goal}
             saved={s}
-            contributions={contributionsTo(log, goal.id)}
+            byPeriod={contributionsByPeriod(log, goal.id)}
             onRemove={() => setRemoving(goal)}
             onAchieve={() => setAchieving(goal)}
+            onTry={(v) => setAmount(goal.id, Math.min(maxFor(goal), v))}
           />
         ))}
       </div>
@@ -298,6 +415,11 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
                   onChange={(v) => setAmount(goal.id, v)}
                   label={`На цель «${goal.title}»`}
                 />
+                <DepositPreview
+                  amount={amounts[goal.id] ?? 0}
+                  remaining={goal.price - saved(goal.id)}
+                  title={goal.title}
+                />
               </div>
             ))}
           </div>
@@ -324,8 +446,21 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
 
           {openGoals.length > 1 && depositTotal > 0 && (
             <p className="muted" style={{ marginTop: 10 }}>
-              Всего отложишь {money(depositTotal)}, на балансе останется {money(profile.balance - depositTotal)}.
+              Всего отложишь {money(depositTotal)}, на балансе останется {money(profile.balance - depositTotal)}
             </p>
+          )}
+
+          {/* Откладывать всё до копейки не запрещаем – показываем последствие.
+              Запрет решал бы за ребёнка, а так он видит связь копилки и питомца. */}
+          {needsWarning && (
+            <div className="notice notice--warn" style={{ marginTop: 12 }}>
+              <Icon name="warning" size={18} />
+              <span>
+                {balanceAfter <= 0
+                  ? `Если отложить всё, на еду не останется ничего – питомец проголодается`
+                  : `На балансе останется ${money(balanceAfter)}, а на еду и уход нужно ещё ${money(reserve)} – питомцу не хватит`}
+              </span>
+            </div>
           )}
 
           <button
@@ -412,7 +547,7 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
                   <span className="linkrow__text">
                     <b>{g.title}</b>
                     <span className="muted">
-                      {money(g.price)} · исполнена в периоде {a.period}
+                      {money(g.price)} · исполнена на неделе {a.period}
                     </span>
                   </span>
                 </div>
@@ -469,7 +604,7 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
       {/* ── Конструктор своей цели ── */}
       <Sheet open={builder} onClose={() => setBuilder(false)} title="Своя цель">
         <GoalBuilder
-          averageDeposit={averageDeposit}
+          pace={pace}
           onCreate={(title, price, icon) => startAdding({ kind: 'new', title, price, icon })}
         />
       </Sheet>
@@ -649,7 +784,7 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
               <div className="row row--between">
                 <span>Срок до цели</span>
                 <b>
-                  {etaNow.periods} → {etaAfter.periods} {periodsWord(etaAfter.periods)}
+                  {etaNow.periods} → {etaAfter.periods} {weeksWord(etaAfter.periods)}
                 </b>
               </div>
             )}
@@ -665,14 +800,15 @@ export function SavingsScreen({ nav }: { nav: Nav }) {
 
 /**
  * Ребёнок выбирает цель из подсказок или пишет свою, а стоимость – кнопкой
- * или своим числом в разумных рамках. Сразу видно, сколько периодов
+ * или своим числом в разумных рамках. Сразу видно, сколько недель
  * понадобится при обычном темпе: так тренируется оценка реалистичности цели.
  */
 function GoalBuilder({
-  averageDeposit,
+  pace,
   onCreate,
 }: {
-  averageDeposit: number;
+  /** Сколько сейчас уходит в копилку за неделю. 0 – пополнений ещё не было. */
+  pace: number;
   onCreate: (title: string, price: number, icon: string) => void;
 }) {
   const [title, setTitle] = useState('');
@@ -683,7 +819,10 @@ function GoalBuilder({
     Number.isInteger(price) && price >= CUSTOM_GOAL_MIN_PRICE && price <= CUSTOM_GOAL_MAX_PRICE;
   const titleOk = title.trim().length > 0;
   const suggestion = CUSTOM_GOAL_TITLES.find((t) => t.title === title.trim());
-  const periods = priceOk ? Math.ceil(price / Math.max(1, averageDeposit)) : null;
+  // Если ребёнок уже откладывает – считаем по его темпу. Если ещё нет –
+  // предлагаем посильную сумму, чтобы сразу было видно, за сколько дойдёт.
+  const rate = pace > 0 ? pace : suggestedPace(price || 0, INCOME_REGULAR);
+  const periods = priceOk ? Math.ceil(price / rate) : null;
 
   return (
     <div className="stack">
@@ -748,9 +887,9 @@ function GoalBuilder({
         <div className="notice" style={{ background: '#e6f2fb', color: '#23566f' }}>
           <Icon name="calendar" size={18} />
           <span>
-            Если откладывать по {money(averageDeposit)} за период, накопишь примерно
-            за <b>{periods}</b> {periodsWord(periods)}.
-            {periods > 20 && ' Это долго – может, сначала выбрать цель поменьше?'}
+            Если откладывать по {money(rate)} за неделю, накопишь примерно за{' '}
+            <b>{periods}</b> {weeksAfter(periods)}
+            {periods > 20 && '. Это долго – может, сначала выбрать цель поменьше?'}
           </span>
         </div>
       )}

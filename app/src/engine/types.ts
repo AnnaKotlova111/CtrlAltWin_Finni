@@ -21,7 +21,7 @@ export type ColorId = 'base' | 'green' | 'blue' | 'yellow' | 'purple';
 /** Стадия развития: 1 – малыш, 2 – подросток, 3 – взрослый. */
 export type Stage = 1 | 2 | 3;
 
-/** Направления, по которым ребёнок распределяет бюджет периода. */
+/** Направления, по которым ребёнок распределяет бюджет недели. */
 export type Direction = 'needs' | 'wants' | 'savings';
 
 /** Тип позиции в каталоге покупок. */
@@ -50,12 +50,12 @@ export interface IncomeRecord {
   /** Откуда пришли финкоины. */
   source: string;
   amount: number;
-  /** Номер игрового периода. */
+  /** Номер игровой недели. */
   period: number;
   at: number;
 }
 
-/** Запись о покупке в истории периода. */
+/** Запись о покупке в истории недели. */
 export interface PurchaseRecord {
   id: string;
   itemId: string;
@@ -102,17 +102,17 @@ export interface Goal {
   icon: string;
   /** Цель придумана ребёнком. */
   custom?: boolean;
-  /** В каком периоде ребёнок придумал цель – видно взрослому. */
+  /** На какой неделе ребёнок придумал цель – видно взрослому. */
   createdPeriod?: number;
 }
 
-/** Итог завершённого игрового периода. */
+/** Итог завершённой игровой недели. */
 export interface PeriodSummary {
   period: number;
   income: number;
   plan: Allocation;
   fact: Allocation;
-  /** Сколько очков развития принёс период и за что. */
+  /** Сколько очков развития принесла неделя и за что. */
   growthGained: number;
   growthReasons: { text: string; points: number; ok: boolean }[];
   statsBefore: PetStats;
@@ -140,16 +140,16 @@ export type QuestGrade = 'good' | 'partial' | 'weak';
 /** Настройки доступности и режима работы. */
 export interface Settings {
   animations: boolean;
-  /** Демонстрационный режим: все задания открыты, периоды переключаются сразу. */
+  /** Демонстрационный режим: все задания открыты, недели переключаются сразу. */
   demoMode: boolean;
   /** Крупный текст. */
   largeText: boolean;
 }
 
-/** Состояние текущего игрового периода. */
+/** Состояние текущей игровой недели. */
 export interface PeriodState {
   index: number;
-  /** Сумма, доступная на период (доход периода + перенесённый остаток). */
+  /** Сумма, доступная на неделю (доход недели + перенесённый остаток). */
   income: number;
   plan: Allocation | null;
   planConfirmed: boolean;
@@ -159,10 +159,10 @@ export interface PeriodState {
   incomes: IncomeRecord[];
   savingsOps: SavingRecord[];
   questsDone: string[];
-  /** Непредвиденное событие периода, если оно выпало. */
+  /** Непредвиденное событие недели, если оно выпало. */
   eventId: string | null;
   eventResolved: boolean;
-  /** Перенесённая с прошлого периода обязательная трата. */
+  /** Перенесённая с прошлой недели обязательная трата. */
   carriedEvent: { eventId: string; amount: number } | null;
 }
 

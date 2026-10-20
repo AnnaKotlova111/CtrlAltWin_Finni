@@ -1,7 +1,7 @@
 /**
  * План личного бюджета.
  *
- * До начала периода ребёнок распределяет доступную сумму по трём
+ * До начала недели ребёнок распределяет доступную сумму по трём
  * направлениям. Приложение следит, чтобы распределение не превышало
  * бюджет, и показывает остаток. После подтверждения экран превращается
  * в сравнение плана с фактом.
@@ -55,10 +55,10 @@ export function BudgetScreen({ nav }: { nav: Nav }) {
     const spent = allocationTotal(period.fact);
     return (
       <div className="screen">
-        <TopBar title="План и факт" subtitle={`Период ${period.index}`} onBack={nav.onBack} />
+        <TopBar title="План и факт" subtitle={`Неделя ${period.index}`} onBack={nav.onBack} />
 
         <section className="card card--hero card--tight">
-          <span className="muted">Доступно на период</span>
+          <span className="muted">Доступно на неделю</span>
           <div style={{ marginTop: 2 }}>
             <Money value={period.income} big />
           </div>
@@ -144,10 +144,10 @@ export function BudgetScreen({ nav }: { nav: Nav }) {
 
   return (
     <div className="screen">
-      <TopBar title="План бюджета" subtitle={`Период ${period.index}`} onBack={nav.onBack} />
+      <TopBar title="План бюджета" subtitle={`Неделя ${period.index}`} onBack={nav.onBack} />
 
       <section className="card card--hero">
-        <span className="muted">Доступно на период</span>
+        <span className="muted">Доступно на неделю</span>
         <div style={{ marginTop: 2 }}>
           <Money value={income} big />
         </div>
@@ -243,7 +243,7 @@ export function BudgetScreen({ nav }: { nav: Nav }) {
         }}
       >
         Обязательное – {money(draft.needs)}, желаемое – {money(draft.wants)}, в копилку –{' '}
-        {money(draft.savings)}. После подтверждения план фиксируется, и в конце периода мы
+        {money(draft.savings)}. После подтверждения план фиксируется, и в конце недели мы
         сравним его с фактом
       </Confirm>
     </div>

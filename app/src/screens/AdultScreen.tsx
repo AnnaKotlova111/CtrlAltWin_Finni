@@ -20,6 +20,7 @@ import { money } from '../engine/economy';
 import { useStore } from '../state/store';
 import type { Nav } from '../App';
 import type { Profile } from '../engine/types';
+import { talkPoints } from '../engine/talk';
 
 /** Простой барьер: пример на умножение. Взрослому – мгновенно, ребёнку 7–11 – нет. */
 function makeTask() {
@@ -65,6 +66,9 @@ export function AdultScreen({ nav }: { nav: Nav }) {
       return { theme: t, done: all.filter((q) => done.has(q.id)).length, total: all.length };
     });
   }, [profile]);
+
+  /** Наблюдения для разговора – по решениям последних недель. */
+  const talk = useMemo(() => (profile ? talkPoints(profile) : []), [profile]);
 
   if (!profile) return null;
 
@@ -147,6 +151,30 @@ export function AdultScreen({ nav }: { nav: Nav }) {
         </p>
       </section>
 
+      {/* ── О чём поговорить ──
+          Взрослому мало видеть прогресс: нужен повод для разговора. Наблюдения
+          собраны по настоящим решениям последних недель. */}
+      {talk.length > 0 && (
+        <section className="card">
+          <div className="card__title">
+            <Icon name="heart" size={20} style={{ color: 'var(--pink)' }} />
+            Что обсудить дома
+          </div>
+          <div className="stack--tight stack" style={{ marginTop: 6 }}>
+            {talk.map((point) => (
+              <div key={point.id} className="talk">
+                <p className="talk__fact">{point.fact}</p>
+                <p className="talk__ask">{point.ask}</p>
+              </div>
+            ))}
+          </div>
+          <p className="muted" style={{ marginTop: 10 }}>
+            Это решения последних недель, а не оценка ребёнка. На следующей неделе
+            наблюдения будут другими
+          </p>
+        </section>
+      )}
+
       {/* ── Что освоено ── */}
       <section className="card">
         <div className="card__title">
@@ -181,7 +209,7 @@ export function AdultScreen({ nav }: { nav: Nav }) {
         </div>
         <div className="stack--tight stack" style={{ marginTop: 6 }}>
           <div className="row row--between">
-            <span className="muted">Игровых периодов пройдено</span>
+            <span className="muted">Игровых недель пройдено</span>
             <b>{profile.history.length}</b>
           </div>
           <div className="row row--between">
@@ -270,7 +298,7 @@ export function AdultScreen({ nav }: { nav: Nav }) {
           <label className="switchrow">
             <span>
               <b>Демонстрационный режим</b>
-              <span className="muted">Все задания открыты, периоды переключаются без ожидания</span>
+              <span className="muted">Все задания открыты, недели переключаются без ожидания</span>
             </span>
             <input
               type="checkbox"
@@ -405,7 +433,7 @@ function ParentBonus({ onGive }: { onGive: (amount: number, reason: string) => v
         />
         {!amountOk && amountText !== '' && (
           <p className="muted" style={{ marginTop: 6, color: 'var(--red)' }}>
-            Введите целое число от 1 до {PARENT_BONUS_MAX}.
+            Введите целое число от 1 до {PARENT_BONUS_MAX}
           </p>
         )}
       </div>
@@ -491,9 +519,9 @@ function ChildGoals({ profile }: { profile: Profile }) {
                   </div>
                   <p className="muted" style={{ marginTop: 4 }}>
                     {done
-                      ? `Накоплено ${money(g.price)} · мечта исполнена в периоде ${done.period}`
+                      ? `Накоплено ${money(g.price)} · мечта исполнена на неделе ${done.period}`
                       : `Накоплено ${money(saved)} из ${money(g.price)} · ${share} %`}
-                    {g.custom && g.createdPeriod ? ` · придумана в периоде ${g.createdPeriod}` : ''}
+                    {g.custom && g.createdPeriod ? ` · придумана на неделе ${g.createdPeriod}` : ''}
                   </p>
                 </div>
               );

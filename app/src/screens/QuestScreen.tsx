@@ -241,7 +241,7 @@ function AllocateBody({
       <button className="btn" onClick={onSubmit} disabled={total === 0}>
         Готово
       </button>
-      {rest > 0 && <p className="muted center">Осталось распределить {money(rest)}.</p>}
+      {rest > 0 && <p className="muted center">Осталось распределить {money(rest)}</p>}
     </div>
   );
 }

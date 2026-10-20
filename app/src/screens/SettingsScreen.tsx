@@ -86,7 +86,7 @@ export function SettingsScreen({ nav }: { nav: Nav }) {
         </div>
         <Switch
           title="Проходить сценарий подряд"
-          hint="Все задания открыты, периоды переключаются без ожидания"
+          hint="Все задания открыты, недели переключаются без ожидания"
           checked={profile.settings.demoMode}
           onChange={(v) => set({ demoMode: v })}
         />

@@ -1,5 +1,5 @@
 /**
- * Прогресс: развитие питомца, итоги последнего периода, история и задания.
+ * Прогресс: развитие питомца, итоги последней недели, история и задания.
  *
  * Никакой банковской аналитики: только то, что ребёнок может объяснить словами.
  */
@@ -31,7 +31,7 @@ export function ProgressScreen({ nav }: { nav: Nav }) {
 
   return (
     <div className="screen">
-      <TopBar title="Прогресс" subtitle={`Период ${profile.period.index}`} onBack={nav.onBack} />
+      <TopBar title="Прогресс" subtitle={`Неделя ${profile.period.index}`} onBack={nav.onBack} />
 
       {/* ── Развитие питомца ── */}
       <section className="card card--hero">
@@ -74,12 +74,12 @@ export function ProgressScreen({ nav }: { nav: Nav }) {
         </p>
       </section>
 
-      {/* ── Итоги последнего периода ── */}
+      {/* ── Итоги последней недели ── */}
       {last ? (
         <section className="card card--hero">
           <div className="card__title">
             <Icon name="calendar" size={20} />
-            Итоги периода {last.period}
+            Итоги недели {last.period}
           </div>
           <p style={{ marginBottom: 10 }}>{last.verdict}</p>
 
@@ -122,7 +122,7 @@ export function ProgressScreen({ nav }: { nav: Nav }) {
             <div className="notice notice--good" style={{ marginTop: 12 }}>
               <Icon name="star" size={20} />
               <span>
-                Питомец перешёл на стадию {last.stageAfter}: {s.stageNames[last.stageAfter - 1]}.
+                Питомец перешёл на стадию {last.stageAfter}: {s.stageNames[last.stageAfter - 1]}
               </span>
             </div>
           )}
@@ -138,7 +138,7 @@ export function ProgressScreen({ nav }: { nav: Nav }) {
       ) : (
         <section className="card card--soft">
           <p>
-            Первый период ещё идёт. Когда ты его завершишь, здесь появится сравнение плана
+            Первая неделя ещё идёт. Когда ты её завершишь, здесь появится сравнение плана
             с фактом и объяснение, почему питомец изменился
           </p>
         </section>
@@ -178,7 +178,7 @@ export function ProgressScreen({ nav }: { nav: Nav }) {
                   <Thumb icon={g.icon} tone="green" />
                   <span className="linkrow__text">
                     <b>{g.title}</b>
-                    <span className="muted">Мечта исполнена в периоде {a.period}</span>
+                    <span className="muted">Мечта исполнена на неделе {a.period}</span>
                   </span>
                   <Icon name="trophy" size={20} style={{ color: 'var(--gold-dark)' }} />
                 </div>
@@ -218,18 +218,18 @@ export function ProgressScreen({ nav }: { nav: Nav }) {
         )}
       </section>
 
-      {/* ── История периодов ── */}
+      {/* ── История недель ── */}
       {profile.history.length > 1 && (
         <section className="card">
           <div className="card__title">
             <Icon name="calendar" size={20} />
-            История периодов
+            История недель
           </div>
           <div className="stack--tight stack" style={{ marginTop: 6 }}>
             {[...profile.history].reverse().map((h) => (
               <div key={h.period} className="resultrow resultrow--short">
                 <span>
-                  Период {h.period} · заданий {h.questsDone}
+                  Неделя {h.period} · заданий {h.questsDone}
                 </span>
                 <span className="badge badge--gold">
                   +{h.growthGained} {pointsWord(h.growthGained)}

@@ -13,7 +13,16 @@ import { Coin, Confirm, Money, Sheet, StatRing, Thumb } from '../components/ui';
 import { eventForPeriod } from '../content/events';
 import { species } from '../content/pets';
 import { DEMO_PERIODS } from '../engine/constants';
-import { moodLabel, moodReason, pointsWord, stageProgress, growthToNextStage } from '../engine/pet';
+import {
+  moodLabel,
+  moodNeedsShop,
+  moodReason,
+  pointsWord,
+  stageProgress,
+  growthToNextStage,
+} from '../engine/pet';
+import { plannedSavingsLeft } from '../engine/savings';
+import { money } from '../engine/economy';
 import { nextGreeting } from '../state/greeting';
 import { useStore } from '../state/store';
 import type { Nav } from '../App';
@@ -23,6 +32,7 @@ export function HomeScreen({ nav }: { nav: Nav }) {
     useStore();
   const [howTo, setHowTo] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [askSave, setAskSave] = useState(false);
   // Фраза выбирается один раз при заходе на экран – и меняется при следующем.
   const [greeting] = useState(() => (profile ? nextGreeting(profile.pet.species) : ''));
 
@@ -35,15 +45,22 @@ export function HomeScreen({ nav }: { nav: Nav }) {
 
   const toNext = growthToNextStage(profile.pet.growth);
 
+  // Последняя возможность отложить: неделя закрывается, и эти финкоины
+  // уже не вернутся. Спрашиваем, только если в копилку за неделю не ушло
+  // ничего, мечта есть и деньги на балансе остались.
+  const missedSaving =
+    profile.period.fact.savings === 0 && activeGoals.length > 0 && profile.balance > 0;
+  const planLeft = plannedSavingsLeft(profile.period);
+
   return (
     <div className="screen screen--flush">
       <header className="topbar topbar--over">
         <span className="topbar__title">
           Привет, {profile.playerName}!
           <span className="topbar__sub">
-            Период {profile.period.index}
-            {/* Сценарий рассчитан на пять периодов. Дальше игра продолжается,
-                но «Период 6 из 5» читалось бы как ошибка. */}
+            Неделя {profile.period.index}
+            {/* Сценарий рассчитан на пять недель. Дальше игра продолжается,
+                но «Неделя 6 из 5» читалось бы как ошибка. */}
             {profile.settings.demoMode &&
               (profile.period.index <= DEMO_PERIODS
                 ? ` из ${DEMO_PERIODS} · демо-режим`
@@ -106,11 +123,17 @@ export function HomeScreen({ nav }: { nav: Nav }) {
           </div>
 
           {/* Причина настроения стоит сразу под кольцами – она их и объясняет.
-              Все причины упираются в покупки, поэтому строка ведёт в лавку. */}
-          <button className="moodlink" onClick={() => nav.go({ name: 'shop' })}>
-            <span>{moodReason(profile.stats)}</span>
-            <Icon name="chevron-right" size={26} />
-          </button>
+              В лавку строка ведёт только тогда, когда питомцу чего-то не
+              хватает: когда всё хорошо, звать за покупками не за чем. */}
+          {moodNeedsShop(profile.stats) ? (
+            <button className="moodlink" onClick={() => nav.go({ name: 'shop' })}>
+              <span>{moodReason(profile.stats)}</span>
+              <Icon name="chevron-right" size={26} />
+            </button>
+          ) : (
+            <p className="moodlink moodlink--calm">{moodReason(profile.stats)}</p>
+          )}
+
 
           {/* Развитие питомца: строка со стадией и тонкая полоса под ней. */}
           <section className="card card--tight stagecard">
@@ -207,12 +230,12 @@ export function HomeScreen({ nav }: { nav: Nav }) {
             ))}
           </section>
 
-          {/* ── Непредвиденное событие периода ── */}
+          {/* ── Непредвиденное событие недели ── */}
           {eventPending && (
             <section className="card card--hero eventcard">
               <span className="badge badge--gold">
                 <Icon name="calendar" size={16} />
-                Событие периода
+                Событие недели
               </span>
               <h3 style={{ marginTop: 8 }}>{event.title}</h3>
               <p className="muted" style={{ marginTop: 4 }}>
@@ -266,23 +289,23 @@ export function HomeScreen({ nav }: { nav: Nav }) {
             </button>
           </div>
 
-          {/* ── Завершение периода ── */}
+          {/* ── Завершение недели ── */}
           <section className="card card--soft">
             <div className="card__title">
               <Icon name="calendar" size={20} />
               Подведём итоги!
             </div>
             <p className="muted">
-              Посмотрим, как прошёл период и чему научился {profile.pet.name}
+              Посмотрим, как прошла неделя и чему научился {profile.pet.name}
               {profile.settings.demoMode && '. В демо-режиме – сразу, без ожидания'}
             </p>
             <button
               className="btn"
               style={{ marginTop: 12 }}
-              onClick={() => setConfirmClose(true)}
+              onClick={() => (missedSaving ? setAskSave(true) : setConfirmClose(true))}
               disabled={eventPending ?? false}
             >
-              Завершить период {profile.period.index}
+              Завершить неделю
             </button>
             {/* В демонстрационном режиме сутки тоже нужно уметь перемотать:
                 иначе бонус за вход показать не получится. */}
@@ -310,7 +333,7 @@ export function HomeScreen({ nav }: { nav: Nav }) {
             )}
             {eventPending && (
               <p className="muted" style={{ marginTop: 8 }}>
-                Сначала реши, что делать с событием периода
+                Сначала реши, что делать с событием недели
               </p>
             )}
           </section>
@@ -322,9 +345,40 @@ export function HomeScreen({ nav }: { nav: Nav }) {
         </div>
       </div>
 
+      {/* Оба ответа – действия, поэтому это не обычное подтверждение: нажатие
+          мимо окна просто закрывает его и ничего не решает за ребёнка. */}
+      <Sheet open={askSave} onClose={() => setAskSave(false)} title="Отложить на мечту?">
+        <div className="stack">
+          <p>
+            На этой неделе в копилку ничего не ушло
+            {planLeft > 0 ? `, а в плане было ${money(planLeft)}` : ''}. Неделя закроется, и эти
+            финкоины останутся на балансе
+          </p>
+          <button
+            className="btn"
+            onClick={() => {
+              setAskSave(false);
+              nav.go({ name: 'savings' });
+            }}
+          >
+            Отложить сейчас
+          </button>
+          <button
+            className="btn btn--secondary"
+            onClick={() => {
+              setAskSave(false);
+              dispatch({ type: 'period/close' });
+              nav.go({ name: 'progress' });
+            }}
+          >
+            Завершить неделю
+          </button>
+        </div>
+      </Sheet>
+
       <Confirm
         open={confirmClose}
-        title="Завершить период?"
+        title="Завершить неделю?"
         confirmLabel="Завершить"
         onCancel={() => setConfirmClose(false)}
         onConfirm={() => {
@@ -333,7 +387,7 @@ export function HomeScreen({ nav }: { nav: Nav }) {
           nav.go({ name: 'progress' });
         }}
       >
-        Период закроется, и начнётся следующий. Прогресс сохранится – он никогда не обнуляется
+        Неделя закроется, и начнётся следующая. Прогресс сохранится – он никогда не обнуляется
       </Confirm>
 
       <Sheet open={howTo} onClose={() => setHowTo(false)} title="Как играть">
@@ -353,7 +407,11 @@ export function HomeScreen({ nav }: { nav: Nav }) {
               <b>Выполняй задания.</b> За них начисляют финкоины и объясняют, что произошло
             </li>
             <li>
-              <b>Заверши период.</b> Сравним план с фактом – питомец подрастёт
+              <b>Заверши неделю.</b> Сравним план с фактом – питомец подрастёт
+            </li>
+            <li>
+              <b>Неделя игровая.</b> Она идёт в твоём темпе и заканчивается, когда ты
+              нажмёшь «Подведём итоги» – ждать семь настоящих дней не нужно
             </li>
           </ol>
           <p className="muted">

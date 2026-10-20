@@ -121,7 +121,7 @@ describe('минимальный объём демонстрационного �
     for (const s of SPECIES) expect(s.stageNames).toHaveLength(3);
   });
 
-  it('не менее 5 игровых периодов в демонстрационном режиме', () => {
+  it('не менее 5 игровых недель в демонстрационном режиме', () => {
     expect(DEMO_PERIODS).toBeGreaterThanOrEqual(5);
   });
 
@@ -179,6 +179,93 @@ describe('целостность контента', () => {
     // не виден в редакторе, но на экране получается пустой квадратик.
     // eslint-disable-next-line no-control-regex
     for (const text of contentStrings()) expect(text).not.toMatch(/[ --]/);
+  });
+
+  it('в текстах нет слова «период»', () => {
+    // Дети на тестировании не понимали «период», поэтому в игре везде «неделя».
+    // Слово легко вернуть новой фразой, а звучит оно по-взрослому и сбивает.
+    for (const text of contentStrings()) expect(text).not.toMatch(/период/i);
+  });
+
+  it('в заданиях на распределение все нужные числа есть в условии', () => {
+    // Ребёнок должен выводить ответ из условия, а не угадывать заложенную
+    // нами цифру: если ждём 90 на обязательное, в условии должно быть сказано,
+    // что еда и уход стоят 90.
+    for (const q of QUESTS) {
+      if (q.kind !== 'allocate') continue;
+      const text = `${q.situation} ${q.task}`;
+      for (const [bucket, value] of Object.entries(q.expect)) {
+        expect(text, `${q.id} / ${bucket}`).toContain(String(value));
+      }
+    }
+  });
+
+  it('в списках покупок всё обязательное помещается в лимит', () => {
+    for (const q of QUESTS) {
+      if (q.kind !== 'cart') continue;
+      const need = q.options.filter((o) => o.essential).reduce((s, o) => s + o.price, 0);
+      expect(need, q.id).toBeLessThanOrEqual(q.limit);
+    }
+  });
+
+  it('числа в репликах питомцев совпадают с условием задания', () => {
+    // Когда в задании меняются суммы, реплики и подсказки легко забыть:
+    // так в «Сдаче и чеке» питомец ещё долго вычитал 64 из 100, хотя
+    // в условии уже было 50 и 35.
+    const steps: Record<string, string[]> = {
+      // Промежуточные числа устного счёта: 35 – это 30 и ещё 5.
+      'pay-change': ['30'],
+    };
+
+    for (const quest of QUESTS) {
+      const remarks = QUEST_REMARKS[quest.id];
+      if (!remarks) continue;
+      const inQuest = new Set(JSON.stringify(quest).match(/\d+/g) ?? []);
+
+      for (const remark of Object.values(remarks)) {
+        for (const text of [remark.says, remark.note]) {
+          for (const number of text.match(/\d+/g) ?? []) {
+            if (number.length < 2) continue;
+            if (steps[quest.id]?.includes(number)) continue;
+            expect(inQuest, `${quest.id}: «${text}»`).toContain(number);
+          }
+        }
+      }
+    }
+  });
+
+  it('недели словами в репликах совпадают с условием задания', () => {
+    // «Пять недель ждать?!» – а в задании их шесть. Цифр в такой фразе нет,
+    // поэтому числительные разбираем отдельно.
+    const words: Record<string, number> = {
+      одну: 1, две: 2, три: 3, четыре: 4, пять: 5,
+      шесть: 6, семь: 7, восемь: 8, девять: 9, десять: 10,
+    };
+
+    const weeksIn = (text: string) => {
+      const found = new Set<number>();
+      for (const m of text.matchAll(/(\d+|[а-я]+)\s+недел/gi)) {
+        const token = m[1].toLowerCase();
+        const value = /^\d+$/.test(token) ? Number(token) : words[token];
+        if (value) found.add(value);
+      }
+      return found;
+    };
+
+    for (const quest of QUESTS) {
+      const remarks = QUEST_REMARKS[quest.id];
+      if (!remarks) continue;
+      const inQuest = weeksIn(JSON.stringify(quest));
+      if (inQuest.size === 0) continue;
+
+      for (const remark of Object.values(remarks)) {
+        for (const text of [remark.says, remark.note]) {
+          for (const weeks of weeksIn(text)) {
+            expect([...inQuest], `${quest.id}: «${text}»`).toContain(weeks);
+          }
+        }
+      }
+    }
   });
 
   it('каждое задание связано хотя бы с одной компетенцией', () => {

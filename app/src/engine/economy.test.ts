@@ -13,8 +13,11 @@ import {
   checkPlan,
   clampStat,
   money,
-  periodsToGoal,
-  periodsWord,
+  savingsForecast,
+  needsReserve,
+  suggestedPace,
+  weeksAfter,
+  weeksWord,
   statsDiff,
 } from './economy';
 
@@ -95,25 +98,77 @@ describe('показатели питомца', () => {
 });
 
 describe('срок достижения цели', () => {
-  it('без пополнений срок не показывается', () => {
-    expect(periodsToGoal(500, [])).toBeNull();
+  const periods = (...amounts: number[]) =>
+    amounts.map((amount, i) => ({ period: i + 1, amount }));
+
+  it('без пополнений срок не считается', () => {
+    // Выдумывать темп за ребёнка нельзя: цифра выглядела бы настоящей.
+    expect(savingsForecast(500, [])).toBeNull();
   });
 
-  it('считает по средней сумме пополнения', () => {
-    // средняя 100, осталось 450 → 5 периодов (округление вверх)
-    expect(periodsToGoal(450, [100, 100, 100])).toEqual({ periods: 5, average: 100 });
+  it('цель накоплена – прогноз не нужен', () => {
+    expect(savingsForecast(0, periods(50))).toBeNull();
   });
 
-  it('цель достигнута – срок нулевой', () => {
-    expect(periodsToGoal(0, [50])).toEqual({ periods: 0, average: 0 });
+  it('ровный темп: срок считается по нему', () => {
+    const f = savingsForecast(450, periods(100, 100, 100))!;
+    expect(f.pace).toBe(100);
+    expect(f.periods).toBe(5);
   });
 
-  it('склоняет слово «период»', () => {
-    expect(periodsWord(1)).toBe('период');
-    expect(periodsWord(3)).toBe('периода');
-    expect(periodsWord(5)).toBe('периодов');
-    expect(periodsWord(11)).toBe('периодов');
-    expect(periodsWord(21)).toBe('период');
+  it('давний крупный взнос не выдаётся за нынешний темп', () => {
+    // Откладывали по 10, потом один раз 60, а последние две недели – по 2.
+    const f = savingsForecast(520, periods(10, 10, 60, 2, 2))!;
+    expect(f.pace).toBe(2);
+  });
+
+  it('пропущенная неделя считается нулём, темп падает', () => {
+    const f = savingsForecast(200, [
+      { period: 1, amount: 50 },
+      { period: 4, amount: 10 },
+    ])!;
+    expect(f.pace).toBe(5);
+  });
+
+  it('одно пополнение – прогноз всё равно даётся', () => {
+    const f = savingsForecast(300, periods(50))!;
+    expect(f.periodsFilled).toBe(1);
+    expect(f.periods).toBe(6);
+  });
+
+  it('подсказка: сумма, с которой цель близка, но посильна', () => {
+    // 600 Φ за десять недель – по 60 Φ, это меньше половины карманных.
+    expect(suggestedPace(600, 220)).toBe(60);
+    // Дорогая цель: больше половины карманных советовать нельзя.
+    expect(suggestedPace(3000, 220)).toBe(110);
+    // Близкая цель: совет не опускается ниже десятки.
+    expect(suggestedPace(30, 220)).toBe(10);
+  });
+
+  it('резерв на обязательное: по плану, а без плана – минимальный набор еды', () => {
+    // План на 120 Φ, куплено на 40 – оставить нужно 80.
+    expect(needsReserve({ needs: 120 }, 40, 50)).toBe(80);
+    // Обязательное уже закрыто – оставлять нечего.
+    expect(needsReserve({ needs: 120 }, 150, 50)).toBe(0);
+    // Плана нет – минимальный набор: каша и вода.
+    expect(needsReserve(null, 0, 50)).toBe(50);
+  });
+
+  it('склоняет слово «неделя»', () => {
+    expect(weeksWord(1)).toBe('неделя');
+    expect(weeksWord(3)).toBe('недели');
+    expect(weeksWord(5)).toBe('недель');
+    expect(weeksWord(11)).toBe('недель');
+    expect(weeksWord(21)).toBe('неделя');
+  });
+
+  it('после «через» единица стоит в другой форме', () => {
+    // «1 неделя», но «через 1 неделю» – расходятся только на единице.
+    expect(weeksAfter(1)).toBe('неделю');
+    expect(weeksAfter(21)).toBe('неделю');
+    expect(weeksAfter(3)).toBe('недели');
+    expect(weeksAfter(5)).toBe('недель');
+    expect(weeksAfter(11)).toBe('недель');
   });
 });
 

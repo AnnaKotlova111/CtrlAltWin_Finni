@@ -92,8 +92,14 @@ export function OnboardingScreen() {
             как себя чувствует питомец и как он растёт
           </p>
 
+          <p className="center muted">
+            Игра идёт неделями. В начале недели приходят финкоины, в конце вы с питомцем
+            подводите итоги. Неделя здесь игровая: она закончится, когда ты нажмёшь
+            «Подведём итоги», а не через семь настоящих дней
+          </p>
+
           <div className="card card--hero stack--tight stack">
-            <h3>Каждый период у тебя три решения</h3>
+            <h3>Каждую неделю у тебя три решения</h3>
             <div className="decision">
               <span className="decision__icon decision__icon--needs">
                 <Icon name="bowl" size={22} />
@@ -135,7 +141,7 @@ export function OnboardingScreen() {
           </button>
           <p className="muted center" style={{ fontSize: 13 }}>
             Демонстрационный режим – для экспертной проверки: все задания открыты,
-            периоды переключаются без ожидания
+            недели переключаются без ожидания
           </p>
         </div>
       )}
@@ -238,7 +244,7 @@ export function OnboardingScreen() {
             aria-label="Имя питомца"
           />
           <div className="card card--soft">
-            <b>Стартовый бюджет:</b> {money(INCOME_FIRST)}. Их ты распределишь в первом периоде
+            <b>Стартовый бюджет:</b> {money(INCOME_FIRST)}. Их ты распределишь на первой неделе
           </div>
           <div className="btn-row">
             <button className="btn btn--secondary" onClick={back}>

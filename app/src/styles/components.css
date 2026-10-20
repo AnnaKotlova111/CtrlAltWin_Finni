@@ -368,6 +368,40 @@
   transform: scale(0.99);
 }
 
+/* Когда у питомца всё хорошо, строка никуда не ведёт: ни стрелки,
+   ни отклика на нажатие. */
+.moodlink--calm {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding-right: 16px;
+}
+
+.moodlink--calm:active {
+  transform: none;
+}
+
+/* «Что обсудить дома»: наблюдение и вопрос к нему. */
+.talk {
+  padding: 10px 12px;
+  border-radius: var(--r-chip);
+  background: var(--warm);
+}
+
+.talk__fact {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+}
+
+.talk__ask {
+  margin: 5px 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+
 .statring {
   display: flex;
   flex-direction: column;
@@ -989,6 +1023,123 @@
   justify-content: center;
 }
 
+/* ── Поздравление: исполненная мечта и новая стадия ─────────────────────
+   Два события, ради которых ребёнок копит. Лучи и конфетти проигрываются
+   один раз: повторяющаяся анимация в окне мешала бы читать числа. */
+
+.celebrate {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 14px;
+  border-radius: var(--r-card);
+  background: var(--lavender-soft);
+  text-align: center;
+  animation: celebrate-pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+
+.celebrate--stage {
+  background: rgba(101, 185, 107, 0.15);
+}
+
+/* Тёплый свет за питомцем. Пробовали ещё и лучи, но на телефоне они
+   читались как случайная полоска рядом с мордочкой – убрали. */
+.celebrate__glow {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  width: 244px;
+  height: 244px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(255, 215, 106, 0.5) 0%, rgba(255, 215, 106, 0) 62%);
+}
+
+.celebrate--stage .celebrate__glow {
+  background: radial-gradient(circle, rgba(101, 185, 107, 0.42) 0%, rgba(101, 185, 107, 0) 62%);
+}
+
+.celebrate .petportrait {
+  position: relative;
+  filter: drop-shadow(0 8px 14px rgba(70, 45, 110, 0.18));
+}
+
+.celebrate__headline {
+  position: relative;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: var(--fs-h2);
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.celebrate__facts {
+  position: relative;
+  display: flex;
+  width: 100%;
+  gap: 8px;
+}
+
+/* Плашки делят строку поровну: на узком экране они иначе разъезжались
+   по одной в ряд и окно вырастало на пол-экрана. */
+.celebrate__fact {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: var(--r-chip);
+  background: var(--surface-plain);
+  box-shadow: var(--shadow-sm);
+}
+
+.celebrate__fact b {
+  display: block;
+  font-family: var(--font-head);
+  font-size: var(--fs-lg);
+  /* «3 недели» в две строки делало плашку втрое выше соседней. */
+  white-space: nowrap;
+  color: var(--purple);
+}
+
+.celebrate__fact span {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+
+.celebrate__says {
+  position: relative;
+  margin: 2px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--r-chip);
+  background: var(--surface-plain);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.celebrate__says b {
+  color: var(--purple);
+}
+
+@keyframes celebrate-pop {
+  from {
+    transform: scale(0.93);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .feedback__lines {
   margin: 0;
   padding-left: 20px;
@@ -1161,6 +1312,86 @@
 .notice img {
   flex: none;
   margin-top: 1px;
+}
+
+/* ══════════════ Прикидка накоплений ══════════════ */
+
+/* Что будет, если откладывать столько каждый период. */
+.savecalc {
+  margin-top: 10px;
+}
+
+.savecalc__line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--r-chip);
+  background: var(--lavender-soft);
+  color: var(--purple);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+}
+
+.savecalc__line b {
+  font-size: var(--fs-lg);
+}
+
+.savecalc__hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+/* «А если откладывать по…» – зависимость видно без единого нажатия. */
+.whatif {
+  margin-top: 12px;
+}
+
+.whatif__cap {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-mute);
+}
+
+.whatif__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.whatif__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--warm);
+  color: var(--ink);
+  font-size: 13px;
+  transition: transform var(--dur), background var(--dur);
+}
+
+.whatif__item b {
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.whatif__item span {
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.whatif__item:active {
+  transform: scale(0.97);
+  background: var(--lavender-soft);
 }
 
 /* ══════════════ Степпер ══════════════ */

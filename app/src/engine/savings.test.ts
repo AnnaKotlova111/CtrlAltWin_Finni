@@ -10,7 +10,14 @@ import { migrate } from '../state/storage';
 import { reducer, type Action, type AppState } from '../state/store';
 import { MAX_ACTIVE_GOALS } from './constants';
 import { buildLedger } from './ledger';
-import { contributionsTo, totalSaved } from './savings';
+import {
+  contributionsByPeriod,
+  contributionsTo,
+  plannedSavingsLeft,
+  savedOn,
+  spreadDeposit,
+  totalSaved,
+} from './savings';
 
 function run(actions: Action[]): AppState {
   let state: AppState = { profile: null, feedback: null, ready: true };
@@ -31,6 +38,46 @@ function conserved(state: AppState): boolean {
   const spentFromSavings = p.savingsLog.filter((r) => r.spentOn).reduce((s, r) => s - r.amount, 0);
   return p.balance + totalSaved(p) + spentFromSavings === income - spent;
 }
+
+describe('темп пополнений', () => {
+  const rec = (period: number, amount: number, goalId = 'scooter', extra = {}) => ({
+    id: `r${period}-${amount}`,
+    goalId,
+    amount,
+    period,
+    at: period * 1000,
+    ...extra,
+  });
+
+  it('складывает пополнения одной недели вместе', () => {
+    const log = [rec(1, 10), rec(1, 10), rec(1, 10), rec(2, 50)];
+    expect(contributionsByPeriod(log, 'scooter')).toEqual([
+      { period: 1, amount: 30 },
+      { period: 2, amount: 50 },
+    ]);
+  });
+
+  it('снятия и переносы в темп не попадают', () => {
+    const log = [
+      rec(1, 50),
+      rec(1, -20),
+      rec(2, 40, 'scooter', { movedFrom: 'tent' }),
+      rec(2, 30),
+    ];
+    expect(contributionsByPeriod(log, 'scooter')).toEqual([
+      { period: 1, amount: 50 },
+      { period: 2, amount: 30 },
+    ]);
+  });
+
+  it('без цели считает все цели сразу', () => {
+    const log = [rec(1, 50, 'scooter'), rec(1, 30, 'tent'), rec(2, 20, 'tent')];
+    expect(contributionsByPeriod(log)).toEqual([
+      { period: 1, amount: 80 },
+      { period: 2, amount: 20 },
+    ]);
+  });
+});
 
 describe('несколько целей', () => {
   it('можно копить на две цели, у каждой свой прогресс', () => {
@@ -224,5 +271,91 @@ describe('перевод старых сохранений', () => {
 
   it('неизвестная версия не загружается', () => {
     expect(migrate({ version: 99 })).toBeNull();
+  });
+});
+
+describe('«сначала отложи»', () => {
+  const plan = (savings: number): Action[] => [
+    { type: 'plan/draft', allocation: { needs: 150, wants: 100, savings } },
+    { type: 'plan/confirm' },
+  ];
+
+  it('пока план не подтверждён, откладывать нечего', () => {
+    const s = run([create, { type: 'goal/add', goalId: 'scooter' }, { type: 'plan/draft', allocation: { needs: 150, wants: 100, savings: 50 } }]);
+    expect(plannedSavingsLeft(s.profile!.period)).toBe(0);
+  });
+
+  it('после подтверждения плана остаётся отложить запланированное', () => {
+    const s = run([create, { type: 'goal/add', goalId: 'scooter' }, ...plan(50)]);
+    expect(plannedSavingsLeft(s.profile!.period)).toBe(50);
+  });
+
+  it('кнопка в окне откладывает всё за один шаг, и напоминание гаснет', () => {
+    const s = run([create, { type: 'goal/add', goalId: 'scooter' }, ...plan(50)]);
+    const act = s.feedback!.act;
+    expect(act).toBeDefined();
+    // Деньги не уходят от одного нажатия: у действия есть вопрос.
+    expect(act!.confirm?.title).toContain('50');
+
+    const after = reducer(s, act!.action);
+    expect(plannedSavingsLeft(after.profile!.period)).toBe(0);
+    expect(totalSaved(after.profile!)).toBe(50);
+    expect(conserved(after)).toBe(true);
+  });
+
+  it('если отложено больше плана, напоминание не возвращается', () => {
+    const s = run([
+      create,
+      { type: 'goal/add', goalId: 'scooter' },
+      ...plan(50),
+      { type: 'savings/deposit', amounts: { scooter: 80 } },
+    ]);
+    expect(plannedSavingsLeft(s.profile!.period)).toBe(0);
+  });
+
+  it('без цели кнопки нет: выбрать мечту за ребёнка игра не может', () => {
+    const s = run([create, ...plan(50)]);
+    expect(s.feedback!.act).toBeUndefined();
+    // Сам остаток при этом виден – на главном экране он позовёт в копилку.
+    expect(plannedSavingsLeft(s.profile!.period)).toBe(50);
+  });
+
+  it('при двух целях сумма делится между ними, и об этом сказано', () => {
+    const s = run([
+      create,
+      { type: 'goal/add', goalId: 'scooter' },
+      { type: 'goal/add', goalId: 'tent' },
+      ...plan(50),
+    ]);
+    const act = s.feedback!.act;
+    expect(act!.label).toContain('50');
+    // В вопросе названы обе мечты – ребёнок видит, кому сколько достанется.
+    expect(act!.confirm!.body).toContain('Самокат');
+    expect(act!.confirm!.body).toContain('Домик-палатка');
+
+    const after = reducer(s, act!.action);
+    expect(savedOn(after.profile!, 'scooter')).toBe(25);
+    expect(savedOn(after.profile!, 'tent')).toBe(25);
+    expect(plannedSavingsLeft(after.profile!.period)).toBe(0);
+  });
+
+  it('почти накопленной мечте достаётся только остаток, лишнее – другой', () => {
+    const s = run([
+      create,
+      { type: 'goal/create', title: 'Мячик', price: 60, icon: 'ball' },
+      { type: 'goal/add', goalId: 'scooter' },
+    ]);
+    const ball = s.profile!.goals.find((g) => g.title === 'Мячик')!;
+    const filled = reducer(s, { type: 'savings/deposit', amounts: { [ball.id]: 50 } });
+
+    // Мячику осталось 10 Φ: поровну вышло бы по 50, но больше в него не влезет.
+    const split = spreadDeposit(filled.profile!, 100);
+    expect(split[ball.id]).toBe(10);
+    expect(split.scooter).toBe(90);
+  });
+
+  it('без целей раскладывать некуда', () => {
+    const s = run([create]);
+    expect(spreadDeposit(s.profile!, 100)).toEqual({});
   });
 });
